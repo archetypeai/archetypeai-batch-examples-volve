@@ -20,8 +20,12 @@ random.seed(42)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 INPUT_FILE = os.path.join(DATA_DIR, "HIGGS.csv")
 
-HEADER_FULL = "label,lepton_pT,lepton_eta,lepton_phi,missing_energy_magnitude,missing_energy_phi,jet_1_pt,jet_1_eta,jet_1_phi,jet_1_b-tag,jet_2_pt,jet_2_eta,jet_2_phi,jet_2_b-tag,jet_3_pt,jet_3_eta,jet_3_phi,jet_3_b-tag,jet_4_pt,jet_4_eta,jet_4_phi,jet_4_b-tag,m_jj,m_jjj,m_lv,m_jlv,m_bb,m_wbb,m_wwbb"
-HEADER_NO_LABEL = ",".join(HEADER_FULL.split(",")[1:])
+FEATURE_COLS = "lepton_pT,lepton_eta,lepton_phi,missing_energy_magnitude,missing_energy_phi,jet_1_pt,jet_1_eta,jet_1_phi,jet_1_b-tag,jet_2_pt,jet_2_eta,jet_2_phi,jet_2_b-tag,jet_3_pt,jet_3_eta,jet_3_phi,jet_3_b-tag,jet_4_pt,jet_4_eta,jet_4_phi,jet_4_b-tag,m_jj,m_jjj,m_lv,m_jlv,m_bb,m_wbb,m_wwbb"
+HEADER_FULL = f"timestamp,label,{FEATURE_COLS}"
+HEADER_NO_LABEL = f"timestamp,{FEATURE_COLS}"
+
+# Synthetic timestamps: start at 2026-01-01 00:00:00 UTC, 1 second apart
+TIMESTAMP_START = 1767225600
 
 N_SHOT_PER_CLASS = 1000
 TRAIN_RATIO = 0.80
@@ -122,8 +126,9 @@ def main():
             line = line.rstrip("\n")
             label = convert_label(line)
             features = strip_label(line)
-            labeled_line = label + "," + features + "\n"
-            features_line = features + "\n"
+            ts = str(TIMESTAMP_START + i)
+            labeled_line = ts + "," + label + "," + features + "\n"
+            features_line = ts + "," + features + "\n"
 
             # All rows go to no_label
             files["no_label"].write(features_line)
