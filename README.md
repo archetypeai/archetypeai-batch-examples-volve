@@ -28,12 +28,50 @@ deactivate
 
 ## Dataset
 
-These examples use the [HIGGS dataset](https://archive.ics.uci.edu/dataset/280/higgs) (UCI ML Repository) — 11M rows, 7.5 GB CSV, binary classification.
+These examples use the [HIGGS dataset](https://archive.ics.uci.edu/dataset/280/higgs) (UCI ML Repository) — 11M rows, 7.5 GB CSV, binary classification (Higgs boson signal vs background).
+
+### Download
 
 ```bash
-# Download and extract
+mkdir -p data
 curl -L -o data/higgs.zip https://archive.ics.uci.edu/static/public/280/higgs.zip
 cd data && unzip higgs.zip && gunzip HIGGS.csv.gz && cd ..
+```
+
+### Prepare Data
+
+Split the raw HIGGS.csv into files for n-shot examples, batch inference, fine-tuning, and evaluation:
+
+```bash
+python prepare_data.py
+```
+
+This produces the following files in `data/`:
+
+| File | Rows | Size | Description |
+|------|------|------|-------------|
+| `higgs_boson.csv` | 1,000 | 691 KB | N-shot examples — Higgs boson signal (label=1) |
+| `higgs_no_boson.csv` | 1,000 | 691 KB | N-shot examples — background (label=0) |
+| `higgs_no_label.csv` | 11,000,000 | 7.23 GB | All rows with label removed — for batch inference |
+| `higgs_train.csv` | 8,798,400 | 5.80 GB | 80% training split — for fine-tuning Newton |
+| `higgs_test_label.csv` | 2,199,600 | 1.45 GB | 20% test split with labels — ground truth |
+| `higgs_test_no_label.csv` | 2,199,600 | 1.45 GB | 20% test split without labels — for inference |
+
+Notes:
+- All files include a header row with column names
+- Labels are integer `1` (boson) / `0` (no boson)
+- The 2,000 n-shot samples are excluded from train/test splits
+- Dataset is roughly balanced: 5.83M boson vs 5.17M no-boson
+- Random seed is fixed (42) for reproducibility
+
+### Workflow
+
+```
+1. Upload n-shot examples (higgs_boson.csv, higgs_no_boson.csv) to Newton
+2. Run batch inference on higgs_no_label.csv using Newton with n-shot examples
+3. Fine-tune Newton with higgs_train.csv
+4. Run batch inference on higgs_test_no_label.csv using fine-tuned Newton
+5. Compare results against higgs_test_label.csv
 ```
 
 ## Upload API Flow
