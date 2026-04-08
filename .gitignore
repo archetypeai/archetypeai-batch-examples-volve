@@ -1,0 +1,9 @@
+.env
+data/
+*.csv
+*.csv.gz
+*.zip
+__pycache__/
+*.pyc
+python-client/
+/tmp/
