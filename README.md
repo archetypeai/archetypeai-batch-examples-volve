@@ -170,42 +170,145 @@ for FILE in higgs_no_label.csv higgs_boson.csv higgs_no_boson.csv higgs_train.cs
 done
 ```
 
-## Batch Job Examples
+## 5. Batch Jobs
 
-### 1. Python (`examples/create_batch_job.py`)
+Create and monitor batch jobs via `POST /v0.5/jos/jobs`. Two pipeline types are available:
 
-Creates a job, polls status, and displays events on completion.
+### Pipeline 1: Machine State Job Pipeline
 
-```bash
-python examples/create_batch_job.py
+Classifies time-series sensor data using n-shot examples. Uses the Newton foundation model to vectorize sensor windows, then a KNN classifier to predict machine state.
+
+**Pipeline key:** `machine-state-job-pipeline`
+
+**Available model types:**
+- `omega_1_3_slb_surface` — SLB surface sensor monitoring
+- `omega_1_3_slb_power_drive` — SLB downhole power drive monitoring
+
+**Limitations:**
+- Both models were trained on SLB (Schlumberger) drilling sensor data with **9 sensor channels**. Using more or fewer columns will cause shape mismatch errors.
+- The HIGGS dataset has 28 feature columns, so we use only **9 of 28** columns to match the model's expected input shape.
+- `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors.
+- `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 1000 n-shot rows and `window_size: 64` yields ~936 windows).
+
+**Input ports:**
+- `worker.inference` — files to classify
+- `worker.n_shots` — labeled example files with `metadata.class`
+
+**Working config (HIGGS with 9 columns):**
+```yaml
+worker:
+  parallelism: 1
+  config:
+    model_type: "omega_1_3_slb_surface"
+    batch_size: 8
+    timestamp_column: "timestamp"
+    data_columns:
+      - "lepton_pT"
+      - "lepton_eta"
+      - "lepton_phi"
+      - "missing_energy_magnitude"
+      - "missing_energy_phi"
+      - "jet_1_pt"
+      - "jet_1_eta"
+      - "jet_1_phi"
+      - "jet_1_b-tag"
+    reader_config:
+      window_size: 64
+      step_size: 1
+    classifier_config:
+      n_neighbors: 3
+      metric: "euclidean"
+      weights: "uniform"
+    flush_every_n_iteration: 1000
 ```
 
-### 2. Shell Script (`examples/create_batch_job.sh`)
-
-Bash implementation with status polling and event display.
-
 ```bash
-chmod +x examples/create_batch_job.sh
-./examples/create_batch_job.sh
-```
-
-### 3. curl Commands (`examples/create_batch_job_curl.md`)
-
-Step-by-step curl commands. See [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md).
-
-```bash
-# Quick create example
+# Create via API
 curl -s -X POST "$BASE_URL/jos/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name":"my-job","pipeline_type":"batch","pipeline_key":"machine-state-job-pipeline","inputs":{...},"parameters":{...}}'
+  -d '{
+    "name": "higgs-machine-state",
+    "pipeline_type": "batch",
+    "pipeline_key": "machine-state-job-pipeline",
+    "inputs": {
+      "worker.inference": [{"file_id": "higgs_no_label.csv"}],
+      "worker.n_shots": [
+        {"file_id": "higgs_boson.csv", "metadata": {"class": "boson"}},
+        {"file_id": "higgs_no_boson.csv", "metadata": {"class": "no_boson"}}
+      ]
+    },
+    "parameters": { ... }
+  }'
+```
 
-# Check status
+### Pipeline 2: Nano Inference Pipeline
+
+General-purpose inference using Newton's language generation capabilities on input data files.
+
+**Pipeline key:** `nano-inference-pipeline`
+
+**Input ports:**
+- `worker.data` — files to run inference on
+
+**Config:**
+```yaml
+worker:
+  parallelism: 1
+  config:
+    generation:
+      do_sample: true
+      max_new_tokens: 256
+      repetition_penalty: 1
+      temperature: 0.7
+      top_k: 20
+      top_p: 0.8
+```
+
+```bash
+# Create via API
+curl -s -X POST "$BASE_URL/jos/jobs" \
+  -H "Authorization: Bearer $ATAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "higgs-nano-inference",
+    "pipeline_type": "batch",
+    "pipeline_key": "nano-inference-pipeline",
+    "inputs": {
+      "worker.data": [{"file_id": "higgs_no_label.csv"}]
+    },
+    "parameters": {
+      "worker": {
+        "parallelism": 1,
+        "config": {
+          "generation": {
+            "do_sample": true,
+            "max_new_tokens": 256,
+            "repetition_penalty": 1,
+            "temperature": 0.7,
+            "top_k": 20,
+            "top_p": 0.8
+          }
+        }
+      }
+    }
+  }'
+```
+
+### Monitoring Jobs
+
+```bash
+# Check status (PENDING → RUNNING → COMPLETED / FAILED / CANCELLED)
 curl -s "$BASE_URL/jos/jobs/$JOB_ID" -H "Authorization: Bearer $ATAI_API_KEY"
 
-# View events
+# View events/logs
 curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_KEY"
+
+# List all jobs
+curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
+
+See also: [examples/create_batch_job.py](examples/create_batch_job.py), [examples/create_batch_job.sh](examples/create_batch_job.sh), [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md)
 
 ## API Reference
 
