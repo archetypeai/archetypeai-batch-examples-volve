@@ -310,6 +310,10 @@ curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 
 See also: [examples/create_batch_job.py](examples/create_batch_job.py), [examples/create_batch_job.sh](examples/create_batch_job.sh), [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md)
 
+## 6. Fine-Tuning
+
+TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
+
 ## API Reference
 
 ### Files API
