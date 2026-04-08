@@ -166,7 +166,46 @@ curl -s -X POST "$BASE_URL/files/uploads/initiate" \
   -d '{"filename":"HIGGS.csv","file_type":"text/csv","num_bytes":8035497980}'
 ```
 
+## Batch Job Examples
+
+### 1. Python (`examples/create_batch_job.py`)
+
+Creates a job, polls status, and displays events on completion.
+
+```bash
+python examples/create_batch_job.py
+```
+
+### 2. Shell Script (`examples/create_batch_job.sh`)
+
+Bash implementation with status polling and event display.
+
+```bash
+chmod +x examples/create_batch_job.sh
+./examples/create_batch_job.sh
+```
+
+### 3. curl Commands (`examples/create_batch_job_curl.md`)
+
+Step-by-step curl commands. See [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md).
+
+```bash
+# Quick create example
+curl -s -X POST "$BASE_URL/jos/jobs" \
+  -H "Authorization: Bearer $ATAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-job","pipeline_type":"batch","pipeline_key":"machine-state-job-pipeline","inputs":{...},"parameters":{...}}'
+
+# Check status
+curl -s "$BASE_URL/jos/jobs/$JOB_ID" -H "Authorization: Bearer $ATAI_API_KEY"
+
+# View events
+curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_KEY"
+```
+
 ## API Reference
+
+### Files API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -177,6 +216,15 @@ curl -s -X POST "$BASE_URL/files/uploads/initiate" \
 | `/v0.5/files` | POST | Simple upload (< 255 MB) |
 | `/v0.5/files/info` | GET | List file storage summary |
 | `/v0.5/files/metadata` | GET | List all file metadata |
+
+### Batch Jobs API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v0.5/jos/jobs` | POST | Create a batch job |
+| `/v0.5/jos/jobs` | GET | List all jobs |
+| `/v0.5/jos/jobs/{job_id}` | GET | Get job status |
+| `/v0.5/jos/jobs/{job_id}/events` | GET | Get job events/logs |
 
 ## License
 
