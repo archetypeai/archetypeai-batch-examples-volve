@@ -13,8 +13,17 @@ cd archetype-batch-examples
 cp .env.example .env
 # Edit .env with your ATAI_API_KEY and ATAI_API_ENDPOINT
 
+# Create a virtual environment
+python3 -m venv myenv
+
+# Activate it
+source myenv/bin/activate
+
 # Install Python dependencies
 pip install requests
+
+# Deactivate when done
+deactivate
 ```
 
 ## Dataset
