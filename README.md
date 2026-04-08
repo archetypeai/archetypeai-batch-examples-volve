@@ -1,8 +1,8 @@
 # Archetype AI Batch Processing Examples
 
-Examples for uploading large files to the Archetype AI platform using the new multipart presigned URL upload API.
+Examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform.
 
-## Setup
+## 1. Setup
 
 ```bash
 # Clone
@@ -26,11 +26,9 @@ pip install requests
 deactivate
 ```
 
-## Dataset
+## 2. Dataset
 
 These examples use the [HIGGS dataset](https://archive.ics.uci.edu/dataset/280/higgs) (UCI ML Repository) — 11M rows, 7.5 GB CSV, binary classification (Higgs boson signal vs background).
-
-### Download
 
 ```bash
 mkdir -p data
@@ -38,9 +36,9 @@ curl -L -o data/higgs.zip https://archive.ics.uci.edu/static/public/280/higgs.zi
 cd data && unzip higgs.zip && gunzip HIGGS.csv.gz && cd ..
 ```
 
-### Prepare Data
+## 3. Prepare Data
 
-Split the raw HIGGS.csv into files for n-shot examples, batch inference, fine-tuning, and evaluation:
+Split the raw `HIGGS.csv` into files for n-shot examples, batch inference, fine-tuning, and evaluation:
 
 ```bash
 python prepare_data.py
@@ -74,26 +72,28 @@ Notes:
 5. Compare results against higgs_test_label.csv
 ```
 
-## Upload API Flow
+## 4. Upload Files
 
 The multipart upload uses a 3-step presigned URL flow:
 
 ```
-1. POST /v0.5/files/uploads/initiate   → server returns presigned S3 URLs
-2. PUT  each part to presigned URL      → upload directly to S3, collect ETags
+1. POST /v0.5/files/uploads/initiate     → server returns presigned S3 URLs
+2. PUT  each part to presigned URL        → upload directly to S3, collect ETags
 3. POST /v0.5/files/uploads/{id}/complete → finalize with ETags
 ```
 
-The server automatically selects `simple` or `multipart` strategy based on file size.
+The server automatically selects `simple` (single PUT) or `multipart` (chunked) strategy based on file size.
 
-## Examples
+Upload all prepared files:
 
-### 1. Python (`examples/upload_multipart.py`)
-
-Full-featured upload with progress bar, speed tracking, and ETA.
+### Python
 
 ```bash
-python examples/upload_multipart.py data/HIGGS.csv
+python examples/upload_multipart.py data/higgs_no_label.csv
+python examples/upload_multipart.py data/higgs_boson.csv
+python examples/upload_multipart.py data/higgs_no_boson.csv
+python examples/upload_multipart.py data/higgs_train.csv
+python examples/upload_multipart.py data/higgs_test_no_label.csv
 ```
 
 Output:
@@ -101,69 +101,54 @@ Output:
 ============================================================
  Archetype AI Multipart Upload
 ============================================================
- File:     HIGGS.csv
- Size:     7.49 GB (8,035,497,980 bytes)
+ File:     higgs_no_label.csv
+ Size:     7.23 GB (7,760,498,260 bytes)
  Endpoint: https://api.dev.u1.archetypeai.app/v0.5
 ============================================================
 
 [1/3] Initiating upload...
-      upload_id : upl_abc123...
+      upload_id : upl_0h5k39kek18598nph15s7bgr2c
+      file_uid  : fil_1xvbr0n4yd896s1hmhfj33h1wb
       strategy  : multipart
-      parts     : 20 x 400 MB
+      parts     : 19 x 400 MB
 
-[2/3] Uploading 20 parts to S3...
+[2/3] Uploading 19 parts to S3...
 
-  Part  1/20  [████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   5.2%   0.39 GB/7.49 GB   45.2 MB/s  ETA   161s
-  Part  2/20  [████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  10.4%   0.78 GB/7.49 GB   42.1 MB/s  ETA   153s
+  Part  1/19  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   5.4%    400 MB/7.23 GB   31.8 MB/s  ETA   224s
+  Part  2/19  [████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  10.8%    800 MB/7.23 GB   30.7 MB/s  ETA   214s
   ...
 
 [3/3] Completing upload...
-      file_uid: fil_xyz789...
+      file_uid: fil_1xvbr0n4yd896s1hmhfj33h1wb
       status:   Registered
 ```
 
-### 2. Shell Script (`examples/upload_multipart.sh`)
-
-Bash implementation using `curl` and `dd` for chunked file reads.
+### Shell Script
 
 ```bash
 chmod +x examples/upload_multipart.sh
-./examples/upload_multipart.sh data/HIGGS.csv
+
+./examples/upload_multipart.sh data/higgs_no_label.csv
+./examples/upload_multipart.sh data/higgs_boson.csv
+./examples/upload_multipart.sh data/higgs_no_boson.csv
+./examples/upload_multipart.sh data/higgs_train.csv
+./examples/upload_multipart.sh data/higgs_test_no_label.csv
 ```
 
-Output:
-```
-============================================================
- Archetype AI Multipart Upload (Shell)
-============================================================
- File:     HIGGS.csv
- Size:     7.49 GB (8035497980 bytes)
+### curl Commands
 
-[1/3] Initiating upload...
-      upload_id : upl_abc123...
-      strategy  : multipart
-      parts     : 20 x 400 MB
-
-[2/3] Uploading 20 parts to S3...
-
-  Part  1/20  [  5%]  0.39 GB/7.49 GB  45 MB/s  ETag: abc123def456...  ETA: 161s
-  Part  2/20  [ 10%]  0.78 GB/7.49 GB  42 MB/s  ETag: 789ghi012jkl...  ETA: 153s
-  ...
-
-[3/3] Completing upload...
- DONE  file_uid: fil_xyz789...
-```
-
-### 3. curl Commands (`examples/upload_multipart_curl.md`)
-
-Step-by-step curl commands for manual execution or integration into other tools. See [examples/upload_multipart_curl.md](examples/upload_multipart_curl.md).
+Step-by-step curl commands for manual execution. See [examples/upload_multipart_curl.md](examples/upload_multipart_curl.md).
 
 ```bash
-# Quick initiate example
-curl -s -X POST "$BASE_URL/files/uploads/initiate" \
-  -H "Authorization: Bearer $ATAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"filename":"HIGGS.csv","file_type":"text/csv","num_bytes":8035497980}'
+# Initiate upload for each file
+for FILE in higgs_no_label.csv higgs_boson.csv higgs_no_boson.csv higgs_train.csv higgs_test_no_label.csv; do
+  FILE_SIZE=$(stat -f%z "data/$FILE")
+  curl -s -X POST "$BASE_URL/files/uploads/initiate" \
+    -H "Authorization: Bearer $ATAI_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"filename\":\"$FILE\",\"file_type\":\"text/csv\",\"num_bytes\":$FILE_SIZE}"
+  echo
+done
 ```
 
 ## Batch Job Examples
