@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""
+Download Machine State job outputs and compare predictions against HIGGS.csv labels.
+
+Usage:
+    python evaluate_results.py <job_id>
+    python evaluate_results.py job_6pgect4qqc8h0sd6v3rva23y8g
+"""
+
+import csv
+import io
+import os
+import sys
+import time
+
+import requests
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+with open(ENV_PATH) as f:
+    for line in f:
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            os.environ[k] = v
+
+API_KEY = os.environ["ATAI_API_KEY"]
+API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
+BASE_URL = f"{API_ENDPOINT}/v0.5"
+AUTH = {"Authorization": f"Bearer {API_KEY}"}
+
+TIMESTAMP_START = 1767225600
+LABEL_MAP = {1: "boson", 0: "no_boson"}
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+
+def get_outputs(job_id: str) -> list:
+    """Fetch all output metadata (paginated)."""
+    outputs = []
+    offset = 0
+    limit = 50
+    while True:
+        resp = requests.get(
+            f"{BASE_URL}/jos/jobs/{job_id}/outputs",
+            headers=AUTH,
+            params={"limit": limit, "offset": offset},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        outputs.extend(data["outputs"])
+        if offset + limit >= data["total"]:
+            break
+        offset += limit
+    return outputs
+
+
+def download_predictions(outputs: list) -> dict:
+    """Download all output CSVs and merge into {timestamp: prediction}."""
+    predictions = {}
+    total = len(outputs)
+
+    for i, out in enumerate(outputs):
+        url = out["data"]["ref"]
+        fname = out["data"]["filename"]
+
+        if (i + 1) % 100 == 0 or i == 0 or i == total - 1:
+            print(f"  Downloading {i + 1}/{total}: {fname}")
+
+        resp = requests.get(url)
+        resp.raise_for_status()
+
+        reader = csv.DictReader(io.StringIO(resp.text))
+        for row in reader:
+            ts = int(row["TimePoint"])
+            predictions[ts] = row["Prediction"]
+
+    return predictions
+
+
+def load_labels() -> dict:
+    """Load ground truth labels from HIGGS.csv as {timestamp: label}."""
+    labels = {}
+    input_file = os.path.join(DATA_DIR, "HIGGS.csv")
+    print(f"  Loading labels from {input_file}...")
+
+    with open(input_file, "r") as f:
+        for i, line in enumerate(f):
+            ts = TIMESTAMP_START + i
+            label = "boson" if line.startswith("1") else "no_boson"
+            labels[ts] = label
+            if (i + 1) % 1_000_000 == 0:
+                print(f"    Scanned {i + 1:,} rows...")
+
+    return labels
+
+
+def evaluate(predictions: dict, labels: dict):
+    """Compare predictions against labels and print metrics."""
+    tp = fp = tn = fn = 0
+    matched = 0
+    unmatched = 0
+
+    for ts, pred in predictions.items():
+        if ts not in labels:
+            unmatched += 1
+            continue
+        matched += 1
+        actual = labels[ts]
+
+        if pred == "boson" and actual == "boson":
+            tp += 1
+        elif pred == "boson" and actual == "no_boson":
+            fp += 1
+        elif pred == "no_boson" and actual == "no_boson":
+            tn += 1
+        elif pred == "no_boson" and actual == "boson":
+            fn += 1
+
+    total = tp + fp + tn + fn
+    accuracy = (tp + tn) / total if total else 0
+    precision = tp / (tp + fp) if (tp + fp) else 0
+    recall = tp / (tp + fn) if (tp + fn) else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
+
+    print(f"\n{'='*60}")
+    print(f" Evaluation Results")
+    print(f"{'='*60}")
+    print(f"  Predictions:  {len(predictions):>12,}")
+    print(f"  Matched:      {matched:>12,}")
+    print(f"  Unmatched:    {unmatched:>12,}")
+    print()
+    print(f"  {'Confusion Matrix':}")
+    print(f"  {'':>20} {'Pred Boson':>12} {'Pred No-Boson':>14}")
+    print(f"  {'Actual Boson':<20} {tp:>12,} {fn:>14,}")
+    print(f"  {'Actual No-Boson':<20} {fp:>12,} {tn:>14,}")
+    print()
+    print(f"  Accuracy:     {accuracy:>12.4f}  ({tp + tn:,} / {total:,})")
+    print(f"  Precision:    {precision:>12.4f}  (boson)")
+    print(f"  Recall:       {recall:>12.4f}  (boson)")
+    print(f"  F1 Score:     {f1:>12.4f}")
+    print()
+    print(f"  Boson predictions:    {tp + fp:>10,}  ({(tp+fp)/total*100:.1f}%)")
+    print(f"  No-boson predictions: {tn + fn:>10,}  ({(tn+fn)/total*100:.1f}%)")
+    print(f"{'='*60}")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <job_id>")
+        sys.exit(1)
+
+    job_id = sys.argv[1]
+
+    print("=" * 60)
+    print(" Machine State Evaluation")
+    print("=" * 60)
+    print()
+
+    # Step 1: Fetch output metadata
+    print("[1/3] Fetching output list...")
+    t0 = time.time()
+    outputs = get_outputs(job_id)
+    print(f"  Found {len(outputs)} output files ({time.time() - t0:.1f}s)")
+    print()
+
+    # Step 2: Download predictions
+    print("[2/3] Downloading predictions...")
+    t0 = time.time()
+    predictions = download_predictions(outputs)
+    print(f"  Total predictions: {len(predictions):,} ({time.time() - t0:.1f}s)")
+    print()
+
+    # Step 3: Load labels and evaluate
+    print("[3/3] Loading ground truth labels...")
+    t0 = time.time()
+    labels = load_labels()
+    print(f"  Total labels: {len(labels):,} ({time.time() - t0:.1f}s)")
+
+    evaluate(predictions, labels)
+
+
+if __name__ == "__main__":
+    main()
