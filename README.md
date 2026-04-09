@@ -244,12 +244,22 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
 
 ### Pipeline 2: Nano Inference Pipeline
 
-General-purpose inference using Newton's language generation capabilities on input data files.
+Text generation inference using Newton's language capabilities on input data files.
 
 **Pipeline key:** `nano-inference-pipeline`
 
 **Input ports:**
-- `worker.data` — files to run inference on
+- `worker.data` — JSONL files in `data.example` format (not raw CSV)
+
+**Input format:** Each line must be a JSON object with this structure:
+```json
+{"type": "data.example", "event_data": "{\"lens_parameters\": {\"instruction\": \"...\", \"inputs\": [{\"type\": \"data.text\", \"event_data\": {\"contents\": \"...\"}}]}}"}
+```
+
+Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL format:
+```bash
+python convert_to_inference_jsonl.py data/higgs_no_label.csv data/higgs_inference.jsonl --max-rows 100
+```
 
 **Config:**
 ```yaml
@@ -275,7 +285,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "nano-inference-pipeline",
     "inputs": {
-      "worker.data": [{"file_id": "higgs_no_label.csv"}]
+      "worker.data": [{"file_id": "higgs_inference.jsonl"}]
     },
     "parameters": {
       "worker": {
@@ -294,6 +304,12 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
     }
   }'
 ```
+
+**Important notes:**
+- Raw CSV input will result in `"error": "parse error"` for every line — must use JSONL format
+- The base Newton model (without fine-tuning) produces generic responses, not useful analysis. **Fine-tuning is required** to teach Newton how to respond to specific tasks.
+- For classification tasks, use **Machine State Pipeline** instead — it works out of the box with n-shot examples
+- Large files (millions of rows) may timeout — test with small batches first
 
 ### Monitoring Jobs
 
