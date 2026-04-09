@@ -326,7 +326,52 @@ curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 
 See also: [examples/create_batch_job.py](examples/create_batch_job.py), [examples/create_batch_job.sh](examples/create_batch_job.sh), [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md)
 
-## 6. Fine-Tuning
+### Downloading Outputs
+
+Job outputs are available via `GET /v0.5/jos/jobs/{job_id}/outputs` which returns paginated output metadata with presigned S3 download URLs (1-hour expiry, no auth needed).
+
+```bash
+python examples/download_outputs.py <job_id> outputs/
+# or
+./examples/download_outputs.sh <job_id> outputs/
+```
+
+See also: [examples/download_outputs_curl.md](examples/download_outputs_curl.md)
+
+## 6. Evaluation
+
+Compare Machine State predictions against ground truth labels in HIGGS.csv:
+
+```bash
+python evaluate_results.py <job_id>
+```
+
+This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics.
+
+### Results (Machine State, omega_1_3_slb_surface)
+
+```
+  Predictions:    10,999,937
+  Matched:        10,999,937
+
+  Confusion Matrix
+                         Pred Boson  Pred No-Boson
+  Actual Boson            2,903,286      2,925,801
+  Actual No-Boson         2,575,621      2,595,229
+
+  Accuracy:           0.4999  (5,498,515 / 10,999,937)
+  Precision:          0.5299  (boson)
+  Recall:             0.4981  (boson)
+  F1 Score:           0.5135
+```
+
+**~50% accuracy (random chance).** This is expected because the `omega_1_3_slb_surface` model was trained on SLB drilling sensor data (9 specific channels), not particle physics features. Newton's embeddings encode drilling sensor patterns, so the KNN classifier cannot find meaningful separations in HIGGS feature space.
+
+This baseline confirms that:
+- The batch pipeline works end-to-end (11M rows processed in 4.8 hours on GPU)
+- Domain-appropriate fine-tuning is needed to beat random chance on cross-domain data
+
+## 7. Fine-Tuning
 
 TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
 
@@ -352,6 +397,7 @@ TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not ye
 | `/v0.5/jos/jobs` | GET | List all jobs |
 | `/v0.5/jos/jobs/{job_id}` | GET | Get job status |
 | `/v0.5/jos/jobs/{job_id}/events` | GET | Get job events/logs |
+| `/v0.5/jos/jobs/{job_id}/outputs` | GET | List output artifacts (paginated, presigned URLs) |
 
 ## License
 
