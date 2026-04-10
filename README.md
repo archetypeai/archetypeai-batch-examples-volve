@@ -109,9 +109,11 @@ Notes:
 ### Workflow
 
 ```
-1. Upload n-shot examples (volve_drilling.csv, volve_not_drilling.csv) to Newton
+1. Upload n-shot examples (volve_drilling.csv, volve_not_drilling.csv)
 2. Upload inference data (volve_inference.csv)
-3. Run Machine State batch job to classify drilling vs. not-drilling
+3. Run batch job:
+   a. Machine State — classify drilling vs. not-drilling (CSV input)
+   b. Nano Inference — describe rig state in natural language (JSONL input)
 4. Download outputs and evaluate predictions
 ```
 
