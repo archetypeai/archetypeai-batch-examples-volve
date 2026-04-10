@@ -102,13 +102,37 @@ This parses 7,150 WITSML XML files across 14 wells and produces:
 | `volve_csv/*.csv` | varies | varies | Per-well CSVs (with ACTC rig mode column) |
 
 Notes:
-- Drilling/not-drilling classification uses a sensor heuristic: `ROP > 0 AND RPM > 0 AND SPPA > 0`
+- N-shot drilling/not-drilling split uses a sensor heuristic: `ROP > 0 AND RPM > 0 AND SPPA > 0`
 - The 4,000 n-shot samples are excluded from the inference file
 - Dataset breakdown: ~2M drilling rows (27%) vs ~5.4M not-drilling rows (73%)
 - Random seed is fixed (42) for reproducibility
 - Column names are mapped to match the `omega_1_3_surface` model's expected format
 
-### Step 2: Convert CSV to JSONL (for Nano Inference)
+### Step 2: Generate Ground Truth Labels (for evaluation)
+
+Generate ACTC-based labels for `volve_inference.csv` to evaluate prediction accuracy:
+
+```bash
+python 1_prepare_data/generate_labels.py
+```
+
+This reads the ACTC (Rig Mode) column from the per-well CSVs in `data/volve_csv/` and maps each row to a label:
+
+| ACTC Code | Meaning | Label |
+|-----------|---------|-------|
+| 1 | Drilling | `drilling` |
+| 2 | Reaming | `drilling` |
+| 3 | Off Bottom | `not_drilling` |
+| 4 | In Slips | `not_drilling` |
+| 8 | Trip In Slips | `not_drilling` |
+| 9 | Shut In | `not_drilling` |
+| -1, 0, 5, 19, 20, empty | Ambiguous/unknown | skipped |
+
+Output: `data/volve_inference_labeled.csv` — the same as `volve_inference.csv` with an added `label` column. 98.7% of rows receive a label (7.3M of 7.4M rows). This file is used by `5_evaluate/evaluate_results.py` for computing accuracy metrics.
+
+> **Note:** The ACTC labels come from the rig's own control system — they are independent of the sensor values, making them reliable ground truth for evaluating Newton's predictions.
+
+### Step 3: Convert CSV to JSONL (for Nano Inference)
 
 The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
 
@@ -454,12 +478,16 @@ See also: [4_download_outputs/download_outputs_curl.md](4_download_outputs/downl
 
 ### Machine State Pipeline
 
-Compare Machine State predictions against ground truth labels. The evaluation script downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics.
+Compare Machine State predictions against ACTC-based ground truth labels.
+
+**Prerequisite:** Generate labels first (see [step 2 of data prep](#step-2-generate-ground-truth-labels-for-evaluation)):
+```bash
+python 1_prepare_data/generate_labels.py
+```
 
 #### Quick test evaluation
 
 ```bash
-# Evaluate the quick test job (volve_quick_test_200.csv)
 python 5_evaluate/evaluate_results.py <quick_test_job_id>
 ```
 
@@ -468,11 +496,10 @@ Quick test jobs complete in under a minute — use these to verify the pipeline 
 #### Full run evaluation
 
 ```bash
-# Evaluate the full run job (volve_inference.csv, 7.4M rows)
 python 5_evaluate/evaluate_results.py <full_run_job_id>
 ```
 
-This downloads all output chunks (may take several minutes for large jobs) and produces a confusion matrix, accuracy, precision, recall, and F1 score.
+This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score.
 
 ### Nano Inference Pipeline
 
