@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-Download Machine State job outputs and compare predictions against HIGGS.csv labels.
+Download Machine State job outputs and compare predictions against ground truth.
 
 Usage:
     python evaluate_results.py <job_id>
-    python evaluate_results.py job_6pgect4qqc8h0sd6v3rva23y8g
+    python evaluate_results.py job_7mye9zca3h8skstw7fpxdbcj2g
+
+Ground truth is derived from the Volve inference CSV using the sensor heuristic:
+drilling = ROP > 0 AND RPM > 0 AND SPPA > 0.
 """
 
 import csv
@@ -31,9 +34,9 @@ API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
 BASE_URL = f"{API_ENDPOINT}/v0.5"
 AUTH = {"Authorization": f"Bearer {API_KEY}"}
 
-TIMESTAMP_START = 1767225600
-LABEL_MAP = {1: "boson", 0: "no_boson"}
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+POSITIVE_CLASS = "drilling"
+NEGATIVE_CLASS = "not_drilling"
 
 
 def get_outputs(job_id: str) -> list:
@@ -80,18 +83,28 @@ def download_predictions(outputs: list) -> dict:
 
 
 def load_labels() -> dict:
-    """Load ground truth labels from HIGGS.csv as {timestamp: label}."""
+    """Load ground truth labels from volve_inference.csv using sensor heuristic."""
     labels = {}
-    input_file = os.path.join(DATA_DIR, "HIGGS.csv")
+    input_file = os.path.join(DATA_DIR, "volve_inference.csv")
     print(f"  Loading labels from {input_file}...")
 
     with open(input_file, "r") as f:
-        for i, line in enumerate(f):
-            ts = TIMESTAMP_START + i
-            label = "boson" if line.startswith("1") else "no_boson"
+        reader = csv.DictReader(f)
+        count = 0
+        for row in reader:
+            ts = int(row["DATE_TIME"])
+            try:
+                rop = float(row.get("ROP", "") or 0)
+                rpm = float(row.get("RPM", "") or 0)
+                sppa = float(row.get("SPPA", "") or 0)
+            except (ValueError, TypeError):
+                rop = rpm = sppa = 0
+
+            label = POSITIVE_CLASS if (rop > 0 and rpm > 0 and sppa > 0) else NEGATIVE_CLASS
             labels[ts] = label
-            if (i + 1) % 1_000_000 == 0:
-                print(f"    Scanned {i + 1:,} rows...")
+            count += 1
+            if count % 1_000_000 == 0:
+                print(f"    Scanned {count:,} rows...")
 
     return labels
 
@@ -109,13 +122,13 @@ def evaluate(predictions: dict, labels: dict):
         matched += 1
         actual = labels[ts]
 
-        if pred == "boson" and actual == "boson":
+        if pred == POSITIVE_CLASS and actual == POSITIVE_CLASS:
             tp += 1
-        elif pred == "boson" and actual == "no_boson":
+        elif pred == POSITIVE_CLASS and actual == NEGATIVE_CLASS:
             fp += 1
-        elif pred == "no_boson" and actual == "no_boson":
+        elif pred == NEGATIVE_CLASS and actual == NEGATIVE_CLASS:
             tn += 1
-        elif pred == "no_boson" and actual == "boson":
+        elif pred == NEGATIVE_CLASS and actual == POSITIVE_CLASS:
             fn += 1
 
     total = tp + fp + tn + fn
@@ -132,17 +145,17 @@ def evaluate(predictions: dict, labels: dict):
     print(f"  Unmatched:    {unmatched:>12,}")
     print()
     print(f"  {'Confusion Matrix':}")
-    print(f"  {'':>20} {'Pred Boson':>12} {'Pred No-Boson':>14}")
-    print(f"  {'Actual Boson':<20} {tp:>12,} {fn:>14,}")
-    print(f"  {'Actual No-Boson':<20} {fp:>12,} {tn:>14,}")
+    print(f"  {'':>20} {'Pred Drill':>12} {'Pred Not-Drill':>15}")
+    print(f"  {'Actual Drill':<20} {tp:>12,} {fn:>15,}")
+    print(f"  {'Actual Not-Drill':<20} {fp:>12,} {tn:>15,}")
     print()
     print(f"  Accuracy:     {accuracy:>12.4f}  ({tp + tn:,} / {total:,})")
-    print(f"  Precision:    {precision:>12.4f}  (boson)")
-    print(f"  Recall:       {recall:>12.4f}  (boson)")
+    print(f"  Precision:    {precision:>12.4f}  ({POSITIVE_CLASS})")
+    print(f"  Recall:       {recall:>12.4f}  ({POSITIVE_CLASS})")
     print(f"  F1 Score:     {f1:>12.4f}")
     print()
-    print(f"  Boson predictions:    {tp + fp:>10,}  ({(tp+fp)/total*100:.1f}%)")
-    print(f"  No-boson predictions: {tn + fn:>10,}  ({(tn+fn)/total*100:.1f}%)")
+    print(f"  Drilling predictions:     {tp + fp:>10,}  ({(tp+fp)/total*100:.1f}%)")
+    print(f"  Not-drilling predictions: {tn + fn:>10,}  ({(tn+fn)/total*100:.1f}%)")
     print(f"{'='*60}")
 
 

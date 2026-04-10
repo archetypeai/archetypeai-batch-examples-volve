@@ -3,7 +3,7 @@
 # Multipart file upload to Archetype AI using presigned URLs (shell script).
 #
 # Usage:
-#   ./upload_multipart.sh data/HIGGS.csv
+#   ./upload_multipart.sh data/volve_inference.csv
 #
 # Requires: curl, python3 (for JSON parsing), dd
 

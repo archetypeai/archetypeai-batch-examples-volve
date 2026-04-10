@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Convert HIGGS CSV (no label) to JSONL format for Nano Inference Pipeline.
+Convert drilling CSV to JSONL format for Nano Inference Pipeline.
 
 Usage:
-    python convert_to_inference_jsonl.py data/higgs_no_label.csv data/higgs_inference.jsonl --max-rows 100
+    python convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
 
 Input format (per line):
     {"system": "...", "instruction": "...", "prompt": "..."}
@@ -17,24 +17,31 @@ import os
 import sys
 import time
 
-SYSTEM = "You are a particle physics classifier."
-INSTRUCTION = "Given sensor measurements from a particle detector, classify whether the collision produced a Higgs boson. Respond with only 'boson' or 'no_boson'."
+SYSTEM = """You are a drilling operations analyst. You analyze real-time sensor data from oil and gas drilling rigs.
+
+Sensor channel definitions:
+- BPOS: Block Position — height of the traveling block (m)
+- DBTM: Bit Depth — depth of the drill bit below surface (m)
+- FLWI: Flow In — mud flow rate pumped into the hole (L/min)
+- HDTH: Hole Depth — total depth of the hole drilled so far (m)
+- HKLD: Hookload — weight hanging from the hook/traveling block (kkgf)
+- ROP: Rate of Penetration — speed at which the hole gets deeper (m/h)
+- RPM: Rotary Speed — drill string rotation speed (rpm)
+- SPPA: Standpipe Pressure — mud pump pressure (kPa)
+- WOB: Weight on Bit — downward force applied to the drill bit (kkgf)"""
+
+INSTRUCTION = "Describe the current rig state based on these sensor readings. What activity is the rig performing? Are there any notable patterns or concerns?"
 
 FEATURE_COLUMNS = [
-    "lepton_pT", "lepton_eta", "lepton_phi",
-    "missing_energy_magnitude", "missing_energy_phi",
-    "jet_1_pt", "jet_1_eta", "jet_1_phi", "jet_1_b-tag",
-    "jet_2_pt", "jet_2_eta", "jet_2_phi", "jet_2_b-tag",
-    "jet_3_pt", "jet_3_eta", "jet_3_phi", "jet_3_b-tag",
-    "jet_4_pt", "jet_4_eta", "jet_4_phi", "jet_4_b-tag",
-    "m_jj", "m_jjj", "m_lv", "m_jlv", "m_bb", "m_wbb", "m_wwbb",
+    "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",
+    "ROP", "RPM", "SPPA", "WOB",
 ]
 
 
 def row_to_record(row: dict) -> dict:
     """Convert a CSV row to a Nano Inference record."""
     features_text = ", ".join(
-        f"{col}: {float(row[col]):.6f}" for col in FEATURE_COLUMNS
+        f"{col}: {row[col]}" for col in FEATURE_COLUMNS
     )
     return {
         "system": SYSTEM,

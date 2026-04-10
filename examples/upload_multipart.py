@@ -3,7 +3,7 @@
 Multipart file upload to Archetype AI using presigned URLs.
 
 Usage:
-    python upload_multipart.py data/HIGGS.csv
+    python upload_multipart.py data/volve_inference.csv
 
 Flow:
     1. POST /v0.5/files/uploads/initiate  -> get presigned URLs

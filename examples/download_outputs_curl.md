@@ -31,7 +31,7 @@ Response:
       "id": "out_...",
       "data": {
         "ref": "https://s3...presigned-url...",
-        "filename": "pred_higgs_no_label_part_1374.csv",
+        "filename": "pred_volve_inference_part_1374.csv",
         "num_bytes": 147016
       },
       "expires_at": "2026-04-10T00:21:12Z"
@@ -62,8 +62,8 @@ curl -s -o output_part.csv "$URL"
 # View contents
 head -5 output_part.csv
 # Prediction,TimePoint
-# boson,1767225600
-# no_boson,1767225601
+# drilling,1767225600
+# not_drilling,1767225601
 # ...
 ```
 
@@ -104,8 +104,8 @@ done
 
 ```bash
 # Merge all CSV parts into a single file (keep header from first file only)
-head -1 outputs/$JOB_ID/pred_higgs_no_label_part_0.csv > outputs/predictions_merged.csv
-for f in outputs/$JOB_ID/pred_higgs_no_label_part_*.csv; do
+head -1 outputs/$JOB_ID/pred_volve_inference_part_0.csv > outputs/predictions_merged.csv
+for f in outputs/$JOB_ID/pred_volve_inference_part_*.csv; do
   tail -n +2 "$f" >> outputs/predictions_merged.csv
 done
 
@@ -118,7 +118,7 @@ Each output CSV contains:
 
 | Column | Description |
 |--------|-------------|
-| `Prediction` | Predicted class (`boson` or `no_boson`) |
+| `Prediction` | Predicted class (`drilling` or `not_drilling`) |
 | `TimePoint` | Timestamp from input data (maps to row index) |
 
 ## API Reference

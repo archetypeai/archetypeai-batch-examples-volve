@@ -17,9 +17,9 @@ curl -s -X POST "$BASE_URL/files/uploads/initiate" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "filename": "HIGGS.csv",
+    "filename": "volve_inference.csv",
     "file_type": "text/csv",
-    "num_bytes": 8035497980
+    "num_bytes": 885932032
   }' | python3 -m json.tool
 ```
 
@@ -45,7 +45,7 @@ Save the response:
 curl -s -X POST "$BASE_URL/files/uploads/initiate" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"filename":"HIGGS.csv","file_type":"text/csv","num_bytes":8035497980}' \
+  -d '{"filename":"volve_inference.csv","file_type":"text/csv","num_bytes":885932032}' \
   > /tmp/upload_init.json
 ```
 
@@ -58,7 +58,7 @@ Extract a part's URL and upload the corresponding file bytes:
 PART1_URL=$(python3 -c "import json; print(json.load(open('/tmp/upload_init.json'))['parts'][0]['url'])")
 
 # Upload part 1 (first 400 MB)
-dd if=data/HIGGS.csv bs=1M count=400 2>/dev/null | \
+dd if=data/volve_inference.csv bs=1M count=400 2>/dev/null | \
   curl -X PUT "$PART1_URL" \
     -H "Content-Length: 419430400" \
     --data-binary @- \
@@ -77,7 +77,7 @@ OFFSET=$(python3 -c "import json; print(json.load(open('/tmp/upload_init.json'))
 LENGTH=$(python3 -c "import json; print(json.load(open('/tmp/upload_init.json'))['parts'][$((PART_NUM-1))]['length'])")
 PART_URL=$(python3 -c "import json; print(json.load(open('/tmp/upload_init.json'))['parts'][$((PART_NUM-1))]['url'])")
 
-dd if=data/HIGGS.csv bs=1 skip=$OFFSET count=$LENGTH 2>/dev/null | \
+dd if=data/volve_inference.csv bs=1 skip=$OFFSET count=$LENGTH 2>/dev/null | \
   curl -X PUT "$PART_URL" \
     -H "Content-Length: $LENGTH" \
     --data-binary @- \
@@ -108,9 +108,9 @@ Response:
 ```json
 {
   "file_uid": "fil_xyz789...",
-  "file_name": "HIGGS.csv",
+  "file_name": "volve_inference.csv",
   "file_status": "Registered",
-  "num_bytes": 8035497980,
+  "num_bytes": 885932032,
   "file_attributes": {}
 }
 ```

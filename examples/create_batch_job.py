@@ -38,16 +38,16 @@ AUTH = {"Authorization": f"Bearer {API_KEY}"}
 # Job configuration
 # ---------------------------------------------------------------------------
 JOB_PAYLOAD = {
-    "name": "higgs-batch-inference",
+    "name": "volve-drilling-classification",
     "pipeline_type": "batch",
     "pipeline_key": "machine-state-job-pipeline",
     "inputs": {
         "worker.inference": [
-            {"file_id": "higgs_no_label.csv"}
+            {"file_id": "volve_inference.csv"}
         ],
         "worker.n_shots": [
-            {"file_id": "higgs_boson.csv", "metadata": {"class": "boson"}},
-            {"file_id": "higgs_no_boson.csv", "metadata": {"class": "no_boson"}},
+            {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
+            {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}},
         ],
     },
     "parameters": {
@@ -61,18 +61,13 @@ JOB_PAYLOAD = {
                     "weights": "uniform",
                 },
                 "data_columns": [
-                    "lepton_pT", "lepton_eta", "lepton_phi",
-                    "missing_energy_magnitude", "missing_energy_phi",
-                    "jet_1_pt", "jet_1_eta", "jet_1_phi", "jet_1_b-tag",
-                    "jet_2_pt", "jet_2_eta", "jet_2_phi", "jet_2_b-tag",
-                    "jet_3_pt", "jet_3_eta", "jet_3_phi", "jet_3_b-tag",
-                    "jet_4_pt", "jet_4_eta", "jet_4_phi", "jet_4_b-tag",
-                    "m_jj", "m_jjj", "m_lv", "m_jlv", "m_bb", "m_wbb", "m_wwbb",
+                    "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",
+                    "ROP", "RPM", "SPPA", "WOB",
                 ],
                 "flush_every_n_iteration": 150,
                 "model_type": "omega_1_3_surface",
                 "reader_config": {"step_size": 1, "window_size": 1},
-                "timestamp_column": "timestamp",
+                "timestamp_column": "DATE_TIME",
             },
         }
     },
