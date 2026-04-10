@@ -2,10 +2,14 @@
 .DS_Store
 myenv/
 data/
-*.csv
 *.csv.gz
 *.zip
 __pycache__/
 *.pyc
 python-client/
 /tmp/
+
+# Include Volve dataset files
+!data/volve_drilling.csv
+!data/volve_not_drilling.csv
+!data/volve_inference.csv
