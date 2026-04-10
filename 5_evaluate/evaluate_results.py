@@ -21,7 +21,7 @@ import requests
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 with open(ENV_PATH) as f:
     for line in f:
         line = line.strip()
@@ -34,7 +34,7 @@ API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
 BASE_URL = f"{API_ENDPOINT}/v0.5"
 AUTH = {"Authorization": f"Bearer {API_KEY}"}
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 POSITIVE_CLASS = "drilling"
 NEGATIVE_CLASS = "not_drilling"
 

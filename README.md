@@ -83,7 +83,7 @@ unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 Convert the raw WITSML XML files to CSV format and split into n-shot examples and inference data:
 
 ```bash
-python volve_to_csv.py
+python 1_prepare_data/volve_to_csv.py
 ```
 
 This parses 7,150 WITSML XML files across 14 wells and produces:
@@ -128,24 +128,24 @@ Upload all prepared files:
 ### Python
 
 ```bash
-python examples/upload_multipart.py data/volve_drilling.csv
-python examples/upload_multipart.py data/volve_not_drilling.csv
-python examples/upload_multipart.py data/volve_inference.csv
+python 2_upload/upload_multipart.py data/volve_drilling.csv
+python 2_upload/upload_multipart.py data/volve_not_drilling.csv
+python 2_upload/upload_multipart.py data/volve_inference.csv
 ```
 
 ### Shell Script
 
 ```bash
-chmod +x examples/upload_multipart.sh
+chmod +x 2_upload/upload_multipart.sh
 
-./examples/upload_multipart.sh data/volve_drilling.csv
-./examples/upload_multipart.sh data/volve_not_drilling.csv
-./examples/upload_multipart.sh data/volve_inference.csv
+./2_upload/upload_multipart.sh data/volve_drilling.csv
+./2_upload/upload_multipart.sh data/volve_not_drilling.csv
+./2_upload/upload_multipart.sh data/volve_inference.csv
 ```
 
 ### curl Commands
 
-Step-by-step curl commands for manual execution. See [examples/upload_multipart_curl.md](examples/upload_multipart_curl.md).
+Step-by-step curl commands for manual execution. See [2_upload/upload_multipart_curl.md](2_upload/upload_multipart_curl.md).
 
 ```bash
 # Initiate upload for each file
@@ -212,13 +212,13 @@ worker:
 
 **Python:**
 ```bash
-python examples/create_batch_job.py
+python 3_batch_jobs/create_batch_job.py
 ```
 
 **Shell:**
 ```bash
-chmod +x examples/create_batch_job.sh
-./examples/create_batch_job.sh
+chmod +x 3_batch_jobs/create_batch_job.sh
+./3_batch_jobs/create_batch_job.sh
 ```
 
 **curl:**
@@ -241,7 +241,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
   }'
 ```
 
-See also: [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md) for the full curl walkthrough.
+See also: [3_batch_jobs/create_batch_job_curl.md](3_batch_jobs/create_batch_job_curl.md) for the full curl walkthrough.
 
 ### Pipeline 2: Nano Inference Pipeline
 
@@ -268,7 +268,7 @@ At least one text field should be non-empty. See [input format reference](https:
 
 Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL format:
 ```bash
-python convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
+python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
 ```
 
 **Config:**
@@ -304,33 +304,33 @@ curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_
 curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
 
-See also: [examples/create_batch_job.py](examples/create_batch_job.py), [examples/create_batch_job.sh](examples/create_batch_job.sh), [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md)
+See also: [examples/create_batch_job.py](examples/create_batch_job.py), [3_batch_jobs/create_batch_job.sh](3_batch_jobs/create_batch_job.sh), [3_batch_jobs/create_batch_job_curl.md](3_batch_jobs/create_batch_job_curl.md)
 
 ### Downloading Outputs
 
 Job outputs are available via `GET /v0.5/jos/jobs/{job_id}/outputs` which returns paginated output metadata with presigned S3 download URLs (1-hour expiry, no auth needed).
 
 ```bash
-python examples/download_outputs.py <job_id> outputs/
+python 4_download_outputs/download_outputs.py <job_id> outputs/
 # or
-./examples/download_outputs.sh <job_id> outputs/
+./4_download_outputs/download_outputs.sh <job_id> outputs/
 ```
 
-See also: [examples/download_outputs_curl.md](examples/download_outputs_curl.md)
+See also: [4_download_outputs/download_outputs_curl.md](4_download_outputs/download_outputs_curl.md)
 
 ## 6. Evaluation
 
 Compare Machine State predictions against ground truth:
 
 ```bash
-python evaluate_results.py <job_id>
+python 5_evaluate/evaluate_results.py <job_id>
 ```
 
 This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics (confusion matrix, precision, recall, F1 score).
 
 ## 7. Fine-Tuning
 
-TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
+TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `1_prepare_data/convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
 
 ## Data Attribution
 

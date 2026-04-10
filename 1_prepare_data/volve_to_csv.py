@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 VOLVE_DIR = os.path.join(DATA_DIR, "volve", "WITSML Realtime drilling data")
 OUTPUT_DIR = os.path.join(DATA_DIR, "volve_csv")
 
