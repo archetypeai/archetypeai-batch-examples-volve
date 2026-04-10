@@ -161,7 +161,7 @@ python 2_upload/upload_multipart.py data/volve_not_drilling.csv
 python 2_upload/upload_multipart.py data/volve_inference.csv
 
 # Quick test for Machine State pipeline (30-row sample)
-python 2_upload/upload_multipart.py data/volve_drilling_200.csv
+python 2_upload/upload_multipart.py data/volve_quick_test_200.csv
 
 # Quick test for Nano Inference pipeline (30 prompts)
 python 2_upload/upload_multipart.py data/volve_nano_30.jsonl
@@ -178,7 +178,7 @@ chmod +x 2_upload/upload_multipart.sh
 ./2_upload/upload_multipart.sh data/volve_inference.csv
 
 # Quick test for Machine State pipeline (30-row sample)
-./2_upload/upload_multipart.sh data/volve_drilling_200.csv
+./2_upload/upload_multipart.sh data/volve_quick_test_200.csv
 
 # Quick test for Nano Inference pipeline (30 prompts)
 ./2_upload/upload_multipart.sh data/volve_nano_30.jsonl
@@ -190,7 +190,7 @@ Step-by-step curl commands for manual execution. See [2_upload/upload_multipart_
 
 ```bash
 # Initiate upload for each file
-for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv volve_drilling_200.csv; do
+for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv volve_quick_test_200.csv; do
   FILE_SIZE=$(stat -f%z "data/$FILE")
   curl -s -X POST "$BASE_URL/files/uploads/initiate" \
     -H "Authorization: Bearer $ATAI_API_KEY" \
@@ -260,7 +260,7 @@ worker:
 
 #### Quick test (30-row sample)
 
-Uses `volve_drilling_200.csv` with the same n-shot files — fast way to verify the pipeline works:
+Uses `volve_quick_test_200.csv` with the same n-shot files — fast way to verify the pipeline works:
 
 ```bash
 curl -s -X POST "$BASE_URL/jos/jobs" \
@@ -271,7 +271,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "machine-state-job-pipeline",
     "inputs": {
-      "worker.inference": [{"file_id": "volve_drilling_200.csv"}],
+      "worker.inference": [{"file_id": "volve_quick_test_200.csv"}],
       "worker.n_shots": [
         {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
         {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}}
@@ -459,7 +459,7 @@ Compare Machine State predictions against ground truth labels. The evaluation sc
 #### Quick test evaluation
 
 ```bash
-# Evaluate the quick test job (volve_drilling_200.csv)
+# Evaluate the quick test job (volve_quick_test_200.csv)
 python 5_evaluate/evaluate_results.py <quick_test_job_id>
 ```
 
