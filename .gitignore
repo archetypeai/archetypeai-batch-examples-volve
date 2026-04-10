@@ -1,4 +1,6 @@
 .env
+.DS_Store
+myenv/
 data/
 *.csv
 *.csv.gz
