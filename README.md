@@ -1,6 +1,6 @@
 # Archetype AI Batch Processing Examples
 
-End-to-end examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform using real-world drilling sensor data from the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) (7.4M rows, 14 wells, North Sea 2007-2016).
+End-to-end examples for batch upload, batch inference, and batch fine-tuning (TBD) on the Archetype AI platform using real-world drilling sensor data from the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) (7.4M rows, 14 wells, North Sea 2007-2016).
 
 **What's included:**
 
