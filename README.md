@@ -113,17 +113,19 @@ Notes:
 The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
 
 ```bash
-# Convert 30 rows for a quick test
+# Convert 30 rows for a quick test (recommended starting point)
 python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_30.jsonl --max-rows 30
 
-# Or convert more rows
-python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 1000
+# Convert a larger batch
+python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_1000.jsonl --max-rows 1000
 ```
 
 Each output line has `system` (with sensor definitions), `instruction`, and `prompt` fields:
 ```json
 {"system": "You are a drilling operations analyst...", "instruction": "Describe the current rig state...", "prompt": "BPOS: 10.02, DBTM: 259.92, ..."}
 ```
+
+> **Note:** Use `--max-rows` to limit the output size. Nano Inference generates up to 256 tokens per row, so large files (millions of rows) will take a very long time or timeout. Start with 30-1000 rows and scale up as needed. Omitting `--max-rows` converts all 7.4M rows, which is not recommended for Nano Inference.
 
 ### Workflow
 
