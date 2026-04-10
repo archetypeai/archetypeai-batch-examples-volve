@@ -84,9 +84,9 @@ def download_predictions(outputs: list) -> dict:
 
 
 def load_labels() -> dict:
-    """Load ground truth labels from volve_inference_labeled.csv (ACTC-based)."""
+    """Load ground truth labels from volve_raw_labeled.csv (ACTC-based)."""
     labels = {}
-    labeled_file = os.path.join(DATA_DIR, "volve_inference_labeled.csv")
+    labeled_file = os.path.join(DATA_DIR, "volve_raw_labeled.csv")
 
     if not os.path.exists(labeled_file):
         print(f"  ERROR: {labeled_file} not found.")

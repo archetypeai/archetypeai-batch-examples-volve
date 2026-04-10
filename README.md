@@ -84,39 +84,25 @@ This creates `data/volve/WITSML Realtime drilling data/` with well folders conta
 
 ## 3. Prepare Data
 
-### Step 1: Convert WITSML XML to CSV
+### Step 1: Convert WITSML XML to raw CSV
 
-Convert the raw WITSML XML files to CSV format and split into n-shot examples and inference data:
+Parse all WITSML XML files into a single CSV with sensor data and ACTC rig mode codes:
 
 ```bash
 python 1_prepare_data/volve_to_csv.py
 ```
 
-This parses 7,150 WITSML XML files across 14 wells and produces:
+Output: `data/volve_raw.csv` — 7,419,984 rows, 860 MB (9 sensor columns + DATE_TIME + ACTC)
 
-| File | Rows | Size | Description |
-|------|------|------|-------------|
-| `volve_drilling.csv` | 2,000 | 253 KB | N-shot examples — drilling class |
-| `volve_not_drilling.csv` | 2,000 | 226 KB | N-shot examples — not-drilling class |
-| `volve_inference.csv` | 7,415,900 | 845 MB | All wells combined — for batch inference |
-| `volve_csv/*.csv` | varies | varies | Per-well CSVs (with ACTC rig mode column) |
+### Step 2: Generate labels and split data
 
-Notes:
-- N-shot drilling/not-drilling split uses a sensor heuristic: `ROP > 0 AND RPM > 0 AND SPPA > 0`
-- The 4,000 n-shot samples are excluded from the inference file
-- Dataset breakdown: ~2M drilling rows (27%) vs ~5.4M not-drilling rows (73%)
-- Random seed is fixed (42) for reproducibility
-- Column names are mapped to match the `omega_1_3_surface` model's expected format
-
-### Step 2: Generate Ground Truth Labels (for evaluation)
-
-Generate ACTC-based labels for `volve_inference.csv` to evaluate prediction accuracy:
+Label rows using ACTC rig mode codes and split into n-shot, inference, and quick test files:
 
 ```bash
 python 1_prepare_data/generate_labels.py
 ```
 
-This reads the ACTC (Rig Mode) column from the per-well CSVs in `data/volve_csv/` and maps each row to a label:
+ACTC code mapping:
 
 | ACTC Code | Meaning | Label |
 |-----------|---------|-------|
@@ -128,9 +114,22 @@ This reads the ACTC (Rig Mode) column from the per-well CSVs in `data/volve_csv/
 | 9 | Shut In | `not_drilling` |
 | -1, 0, 5, 19, 20, empty | Ambiguous/unknown | skipped |
 
-Output: `data/volve_inference_labeled.csv` — the same as `volve_inference.csv` with an added `label` column. 98.7% of rows receive a label (7.3M of 7.4M rows). This file is used by `5_evaluate/evaluate_results.py` for computing accuracy metrics.
+Output files:
 
-> **Note:** The ACTC labels come from the rig's own control system — they are independent of the sensor values, making them reliable ground truth for evaluating Newton's predictions.
+| File | Rows | Size | Description |
+|------|------|------|-------------|
+| `volve_raw_labeled.csv` | 7,321,497 | 918 MB | All labeled rows (ground truth for evaluation) |
+| `volve_drilling.csv` | 2,000 | 248 KB | N-shot examples — ACTC-labeled drilling |
+| `volve_not_drilling.csv` | 2,000 | 229 KB | N-shot examples — ACTC-labeled not-drilling |
+| `volve_inference.csv` | 7,317,439 | 834 MB | Remaining rows for batch inference (no label) |
+| `volve_quick_test_200.csv` | 200 | 23 KB | Random sample for quick testing (no label) |
+
+Notes:
+- Labels are based on ACTC (rig control system), not sensor heuristics — independent ground truth
+- 98.7% of rows receive a label (1.3% skipped due to ambiguous/unknown ACTC codes)
+- Dataset breakdown: ~1.8M drilling (24%) vs ~5.5M not-drilling (76%)
+- The 4,000 n-shot samples are excluded from inference and quick test files
+- Random seed is fixed (42) for reproducibility
 
 ### Step 3: Convert CSV to JSONL (for Nano Inference)
 
@@ -480,7 +479,7 @@ See also: [4_download_outputs/download_outputs_curl.md](4_download_outputs/downl
 
 Compare Machine State predictions against ACTC-based ground truth labels.
 
-**Prerequisite:** Generate labels first (see [step 2 of data prep](#step-2-generate-ground-truth-labels-for-evaluation)):
+**Prerequisite:** Generate labels first (see [step 2 of data prep](#step-2-generate-labels-and-split-data)):
 ```bash
 python 1_prepare_data/generate_labels.py
 ```
