@@ -76,7 +76,8 @@ def download_predictions(outputs: list) -> dict:
 
         reader = csv.DictReader(io.StringIO(resp.text))
         for row in reader:
-            ts = int(row["TimePoint"])
+            ts_key = "DATE_TIME" if "DATE_TIME" in row else "TimePoint"
+            ts = int(row[ts_key])
             predictions[ts] = row["Prediction"]
 
     return predictions
