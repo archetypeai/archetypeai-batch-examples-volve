@@ -211,6 +211,8 @@ worker:
     flush_every_n_iteration: 1000
 ```
 
+**Prerequisites:** Upload `volve_drilling.csv`, `volve_not_drilling.csv`, and `volve_inference.csv` first (see [step 4](#4-upload-files)). The scripts reference these files by name on the platform.
+
 **Notes:**
 - Both models expect exactly **9 sensor channels** — using more or fewer columns will cause shape mismatch errors
 - `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors
