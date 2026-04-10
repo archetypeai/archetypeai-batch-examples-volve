@@ -452,13 +452,40 @@ See also: [4_download_outputs/download_outputs_curl.md](4_download_outputs/downl
 
 ## 6. Evaluation
 
-Compare Machine State predictions against ground truth:
+### Machine State Pipeline
+
+Compare Machine State predictions against ground truth labels. The evaluation script downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics.
+
+#### Quick test evaluation
 
 ```bash
-python 5_evaluate/evaluate_results.py <job_id>
+# Evaluate the quick test job (volve_drilling_30.csv)
+python 5_evaluate/evaluate_results.py <quick_test_job_id>
 ```
 
-This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics (confusion matrix, precision, recall, F1 score).
+Quick test jobs complete in under a minute — use these to verify the pipeline works before running the full dataset.
+
+#### Full run evaluation
+
+```bash
+# Evaluate the full run job (volve_inference.csv, 7.4M rows)
+python 5_evaluate/evaluate_results.py <full_run_job_id>
+```
+
+This downloads all output chunks (may take several minutes for large jobs) and produces a confusion matrix, accuracy, precision, recall, and F1 score.
+
+### Nano Inference Pipeline
+
+Nano Inference outputs are natural language descriptions, not classification labels, so there's no automated evaluation. Download the outputs and review manually:
+
+```bash
+python 4_download_outputs/download_outputs.py <nano_job_id> outputs/
+```
+
+Each output line contains:
+```json
+{"line_index": 0, "prediction": "Based on the sensor readings, the rig appears to be idle..."}
+```
 
 ## 7. Fine-Tuning
 
