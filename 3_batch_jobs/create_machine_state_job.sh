@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Create and monitor a batch job on the Archetype AI platform.
+# Create and monitor a Machine State batch job on the Archetype AI platform.
 #
 # Usage:
-#   ./create_batch_job.sh
+#   ./create_machine_state_job.sh
 #
 # Requires: curl, python3 (for JSON parsing)
 

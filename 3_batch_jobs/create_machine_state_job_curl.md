@@ -1,6 +1,6 @@
-# Create Batch Job with curl (step-by-step)
+# Create Machine State Job with curl (step-by-step)
 
-Manual curl commands for creating and monitoring batch jobs.
+Manual curl commands for creating and monitoring Machine State batch jobs.
 
 ## Prerequisites
 

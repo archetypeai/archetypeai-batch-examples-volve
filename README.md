@@ -212,13 +212,13 @@ worker:
 
 **Python:**
 ```bash
-python 3_batch_jobs/create_batch_job.py
+python 3_batch_jobs/create_machine_state_job.py
 ```
 
 **Shell:**
 ```bash
-chmod +x 3_batch_jobs/create_batch_job.sh
-./3_batch_jobs/create_batch_job.sh
+chmod +x 3_batch_jobs/create_machine_state_job.sh
+./3_batch_jobs/create_machine_state_job.sh
 ```
 
 **curl:**
@@ -241,7 +241,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
   }'
 ```
 
-See also: [3_batch_jobs/create_batch_job_curl.md](3_batch_jobs/create_batch_job_curl.md) for the full curl walkthrough.
+See also: [3_batch_jobs/create_machine_state_job_curl.md](3_batch_jobs/create_machine_state_job_curl.md) for the full curl walkthrough.
 
 ### Pipeline 2: Nano Inference Pipeline
 
@@ -285,6 +285,19 @@ worker:
       top_p: 0.8
 ```
 
+**Python:**
+```bash
+python 3_batch_jobs/create_nano_inference_job.py
+```
+
+**Shell:**
+```bash
+chmod +x 3_batch_jobs/create_nano_inference_job.sh
+./3_batch_jobs/create_nano_inference_job.sh
+```
+
+See also: [3_batch_jobs/create_nano_inference_job_curl.md](3_batch_jobs/create_nano_inference_job_curl.md) for the full curl walkthrough.
+
 **Important notes:**
 - Raw CSV input will result in `"error": "parse error"` for every line — must use JSONL format
 - The base Newton model (without fine-tuning) produces generic responses, not useful analysis. **Fine-tuning is required** to teach Newton how to respond to specific tasks.
@@ -304,7 +317,7 @@ curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_
 curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
 
-See also: [examples/create_batch_job.py](examples/create_batch_job.py), [3_batch_jobs/create_batch_job.sh](3_batch_jobs/create_batch_job.sh), [3_batch_jobs/create_batch_job_curl.md](3_batch_jobs/create_batch_job_curl.md)
+See also: [examples/create_batch_job.py](examples/create_batch_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_machine_state_job_curl.md](3_batch_jobs/create_machine_state_job_curl.md)
 
 ### Downloading Outputs
 

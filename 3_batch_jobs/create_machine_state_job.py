@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Create and monitor a batch job on the Archetype AI platform.
+Create and monitor a Machine State batch job on the Archetype AI platform.
+
+Classifies drilling sensor data into drilling vs. not-drilling using
+n-shot examples and KNN over Newton embeddings.
 
 Usage:
-    python create_batch_job.py
+    python create_machine_state_job.py
 
 Flow:
     1. POST /v0.5/jos/jobs          → create batch job
