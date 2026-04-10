@@ -139,11 +139,11 @@ python 2_upload/upload_multipart.py data/volve_drilling.csv
 python 2_upload/upload_multipart.py data/volve_not_drilling.csv
 python 2_upload/upload_multipart.py data/volve_inference.csv
 
-# Nano Inference pipeline files
-python 2_upload/upload_multipart.py data/volve_nano_30.jsonl
-
-# Quick test file (30-row sample)
+# Quick test for Machine State pipeline (30-row sample)
 python 2_upload/upload_multipart.py data/volve_drilling_30.csv
+
+# Quick test for Nano Inference pipeline (30 prompts)
+python 2_upload/upload_multipart.py data/volve_nano_30.jsonl
 ```
 
 ### Shell Script
@@ -156,11 +156,11 @@ chmod +x 2_upload/upload_multipart.sh
 ./2_upload/upload_multipart.sh data/volve_not_drilling.csv
 ./2_upload/upload_multipart.sh data/volve_inference.csv
 
-# Nano Inference pipeline files
-./2_upload/upload_multipart.sh data/volve_nano_30.jsonl
-
-# Quick test file (30-row sample)
+# Quick test for Machine State pipeline (30-row sample)
 ./2_upload/upload_multipart.sh data/volve_drilling_30.csv
+
+# Quick test for Nano Inference pipeline (30 prompts)
+./2_upload/upload_multipart.sh data/volve_nano_30.jsonl
 ```
 
 ### curl Commands
