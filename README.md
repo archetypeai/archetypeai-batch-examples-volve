@@ -80,7 +80,7 @@ unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 
 This creates `data/volve/WITSML Realtime drilling data/` with well folders containing WITSML XML files.
 
-> **Note:** If you'd rather skip the download and conversion steps, the prepared CSV files are already included in `data/` — see `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, and `volve_nano_200.jsonl`.
+> **Note:** If you'd rather skip the download and conversion steps, all data files are already included in `data/` via Git LFS — see `volve_raw.csv`, `volve_raw_labeled.csv`, `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, `volve_quick_test_200.csv`, and `volve_nano_200.jsonl`.
 
 ## 3. Prepare Data
 
@@ -317,7 +317,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
   }'
 ```
 
-#### Full run (7.4M rows)
+#### Full run (7.3M rows)
 
 Uses `volve_inference.csv` — takes several hours on GPU:
 
@@ -375,7 +375,7 @@ Text generation inference using Newton's language capabilities on input data fil
 | `prompt` | string | No | User prompt / input text |
 | `inputs` | array | No | Multimodal inputs (images, video) |
 
-At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-2-convert-csv-to-jsonl-for-nano-inference).
+At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-3-convert-csv-to-jsonl-for-nano-inference).
 
 **Prerequisites:** Upload `volve_nano_200.jsonl` first (see [step 4](#4-upload-files)).
 
@@ -459,7 +459,7 @@ curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_
 curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
 
-See also: [examples/create_batch_job.py](examples/create_batch_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_machine_state_job_curl.md](3_batch_jobs/create_machine_state_job_curl.md)
+See also: [3_batch_jobs/create_machine_state_job.py](3_batch_jobs/create_machine_state_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_nano_inference_job.py](3_batch_jobs/create_nano_inference_job.py)
 
 ### Downloading Outputs
 
