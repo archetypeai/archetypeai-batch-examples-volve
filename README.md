@@ -490,7 +490,27 @@ python 1_prepare_data/generate_labels.py
 python 5_evaluate/evaluate_results.py <quick_test_job_id>
 ```
 
-Quick test jobs complete in under a minute — use these to verify the pipeline works before running the full dataset.
+Quick test results (200-row sample, ACTC-based labels):
+
+```
+  Predictions:           137
+  Matched:               137
+
+  Confusion Matrix
+                         Pred Drill  Pred Not-Drill
+  Actual Drill                   10              25
+  Actual Not-Drill               20              82
+
+  Accuracy:           0.6715  (92 / 137)
+  Precision:          0.3333  (drilling)
+  Recall:             0.2857  (drilling)
+  F1 Score:           0.3077
+
+  Drilling predictions:             30  (21.9%)
+  Not-drilling predictions:        107  (78.1%)
+```
+
+**67% accuracy** — the model correctly classifies most not-drilling states. It's biased toward "not_drilling" (78% of predictions), which reflects the dataset distribution (76% not-drilling). The model is conservative about predicting "drilling," resulting in lower recall for that class.
 
 #### Full run evaluation
 
@@ -498,7 +518,7 @@ Quick test jobs complete in under a minute — use these to verify the pipeline 
 python 5_evaluate/evaluate_results.py <full_run_job_id>
 ```
 
-This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score.
+This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score. Full run results will be more representative than the 200-row quick test.
 
 ### Nano Inference Pipeline
 
