@@ -251,12 +251,52 @@ worker:
     flush_every_n_iteration: 1000
 ```
 
-**Prerequisites:** Upload `volve_drilling.csv`, `volve_not_drilling.csv`, and `volve_inference.csv` first (see [step 4](#4-upload-files)). The scripts reference these files by name on the platform.
+**Prerequisites:** Upload files first (see [step 4](#4-upload-files)). The scripts reference files by name on the platform.
 
 **Notes:**
 - Both models expect exactly **9 sensor channels** — using more or fewer columns will cause shape mismatch errors
 - `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors
 - `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 2000 n-shot rows and `window_size: 64` yields ~1936 windows)
+
+#### Quick test (30-row sample)
+
+Uses `volve_drilling_30.csv` with the same n-shot files — fast way to verify the pipeline works:
+
+```bash
+curl -s -X POST "$BASE_URL/jos/jobs" \
+  -H "Authorization: Bearer $ATAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "volve-quick-test",
+    "pipeline_type": "batch",
+    "pipeline_key": "machine-state-job-pipeline",
+    "inputs": {
+      "worker.inference": [{"file_id": "volve_drilling_30.csv"}],
+      "worker.n_shots": [
+        {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
+        {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}}
+      ]
+    },
+    "parameters": {
+      "worker": {
+        "parallelism": 1,
+        "config": {
+          "batch_size": 8,
+          "classifier_config": {"metric": "euclidean", "n_neighbors": 5, "weights": "uniform"},
+          "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
+          "flush_every_n_iteration": 1000,
+          "model_type": "omega_1_3_surface",
+          "reader_config": {"step_size": 1, "window_size": 64},
+          "timestamp_column": "DATE_TIME"
+        }
+      }
+    }
+  }'
+```
+
+#### Full run (7.4M rows)
+
+Uses `volve_inference.csv` — takes several hours on GPU:
 
 **Python:**
 ```bash
@@ -319,6 +359,8 @@ Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL fo
 python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
 ```
 
+**Prerequisites:** Upload `volve_nano_30.jsonl` first (see [step 4](#4-upload-files)).
+
 **Config:**
 ```yaml
 worker:
@@ -333,6 +375,10 @@ worker:
       top_p: 0.8
 ```
 
+#### Quick test (30 prompts)
+
+Uses `volve_nano_30.jsonl` — completes in a few minutes:
+
 **Python:**
 ```bash
 python 3_batch_jobs/create_nano_inference_job.py
@@ -344,13 +390,43 @@ chmod +x 3_batch_jobs/create_nano_inference_job.sh
 ./3_batch_jobs/create_nano_inference_job.sh
 ```
 
+**curl:**
+```bash
+curl -s -X POST "$BASE_URL/jos/jobs" \
+  -H "Authorization: Bearer $ATAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "volve-nano-inference",
+    "pipeline_type": "batch",
+    "pipeline_key": "nano-inference-pipeline",
+    "inputs": {
+      "worker.data": [{"file_id": "volve_nano_30.jsonl"}]
+    },
+    "parameters": {
+      "worker": {
+        "parallelism": 1,
+        "config": {
+          "generation": {
+            "do_sample": true,
+            "max_new_tokens": 256,
+            "repetition_penalty": 1,
+            "temperature": 0.7,
+            "top_k": 20,
+            "top_p": 0.8
+          }
+        }
+      }
+    }
+  }'
+```
+
 See also: [3_batch_jobs/create_nano_inference_job_curl.md](3_batch_jobs/create_nano_inference_job_curl.md) for the full curl walkthrough.
 
 **Important notes:**
 - Raw CSV input will result in `"error": "parse error"` for every line — must use JSONL format
-- The base Newton model (without fine-tuning) produces generic responses, not useful analysis. **Fine-tuning is required** to teach Newton how to respond to specific tasks.
+- The base Newton model (without fine-tuning) may not interpret sensor abbreviations correctly. Include sensor definitions in the `system` prompt for better results.
 - For classification tasks, use **Machine State Pipeline** instead — it works out of the box with n-shot examples
-- Large files (millions of rows) may timeout — test with small batches first
+- Large files (millions of rows) will timeout — keep batches to 30-1000 rows
 
 ### Monitoring Jobs
 
