@@ -352,12 +352,7 @@ Text generation inference using Newton's language capabilities on input data fil
 | `prompt` | string | No | User prompt / input text |
 | `inputs` | array | No | Multimodal inputs (images, video) |
 
-At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format).
-
-Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL format:
-```bash
-python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
-```
+At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-2-convert-csv-to-jsonl-for-nano-inference).
 
 **Prerequisites:** Upload `volve_nano_30.jsonl` first (see [step 4](#4-upload-files)).
 
