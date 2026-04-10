@@ -181,8 +181,8 @@ Classifies time-series sensor data using n-shot examples. Uses the Newton founda
 **Pipeline key:** `machine-state-job-pipeline`
 
 **Available model types:**
-- `omega_1_3_slb_surface` — SLB surface sensor monitoring
-- `omega_1_3_slb_power_drive` — SLB downhole power drive monitoring
+- `omega_1_3_surface` — SLB surface sensor monitoring
+- `omega_1_3_power_drive` — SLB downhole power drive monitoring
 
 **Limitations:**
 - Both models were trained on SLB (Schlumberger) drilling sensor data with **9 sensor channels**. Using more or fewer columns will cause shape mismatch errors.
@@ -199,7 +199,7 @@ Classifies time-series sensor data using n-shot examples. Uses the Newton founda
 worker:
   parallelism: 1
   config:
-    model_type: "omega_1_3_slb_surface"
+    model_type: "omega_1_3_surface"
     batch_size: 8
     timestamp_column: "timestamp"
     data_columns:
@@ -357,7 +357,7 @@ python evaluate_results.py <job_id>
 
 This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics.
 
-### Results (Machine State, omega_1_3_slb_surface)
+### Results (Machine State, omega_1_3_surface)
 
 ```
   Predictions:    10,999,937
@@ -374,7 +374,7 @@ This downloads all output artifacts, maps predictions back to original rows via 
   F1 Score:           0.5135
 ```
 
-**~50% accuracy (random chance).** This is expected because the `omega_1_3_slb_surface` model was trained on SLB drilling sensor data (9 specific channels), not particle physics features. Newton's embeddings encode drilling sensor patterns, so the KNN classifier cannot find meaningful separations in HIGGS feature space.
+**~50% accuracy (random chance).** This is expected because the `omega_1_3_surface` model was trained on SLB drilling sensor data (9 specific channels), not particle physics features. Newton's embeddings encode drilling sensor patterns, so the KNN classifier cannot find meaningful separations in HIGGS feature space.
 
 This baseline confirms that:
 - The batch pipeline works end-to-end (11M rows processed in 4.8 hours on GPU)
