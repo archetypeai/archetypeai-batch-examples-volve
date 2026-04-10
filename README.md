@@ -249,12 +249,21 @@ Text generation inference using Newton's language capabilities on input data fil
 **Pipeline key:** `nano-inference-pipeline`
 
 **Input ports:**
-- `worker.data` — JSONL files in `data.example` format (not raw CSV)
+- `worker.data` — JSONL files (not raw CSV)
 
-**Input format:** Each line must be a JSON object with this structure:
+**Input format:** Each line must be a JSON object with `system`, `instruction`, and/or `prompt` fields:
 ```json
-{"type": "data.example", "event_data": "{\"lens_parameters\": {\"instruction\": \"...\", \"inputs\": [{\"type\": \"data.text\", \"event_data\": {\"contents\": \"...\"}}]}}"}
+{"system": "You are a helpful assistant.", "instruction": "Answer concisely.", "prompt": "What is the capital of France?"}
 ```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `system` | string | No | System prompt |
+| `instruction` | string | No | Task instruction |
+| `prompt` | string | No | User prompt / input text |
+| `inputs` | array | No | Multimodal inputs (images, video) |
+
+At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format).
 
 Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL format:
 ```bash

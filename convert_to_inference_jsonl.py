@@ -4,6 +4,11 @@ Convert HIGGS CSV (no label) to JSONL format for Nano Inference Pipeline.
 
 Usage:
     python convert_to_inference_jsonl.py data/higgs_no_label.csv data/higgs_inference.jsonl --max-rows 100
+
+Input format (per line):
+    {"system": "...", "instruction": "...", "prompt": "..."}
+
+See: https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format
 """
 
 import csv
@@ -12,11 +17,8 @@ import os
 import sys
 import time
 
-INSTRUCTION = (
-    "You are a particle physics classifier. Given sensor measurements from a "
-    "particle detector, classify whether the collision produced a Higgs boson. "
-    "Respond with only 'boson' or 'no_boson'."
-)
+SYSTEM = "You are a particle physics classifier."
+INSTRUCTION = "Given sensor measurements from a particle detector, classify whether the collision produced a Higgs boson. Respond with only 'boson' or 'no_boson'."
 
 FEATURE_COLUMNS = [
     "lepton_pT", "lepton_eta", "lepton_phi",
@@ -29,26 +31,15 @@ FEATURE_COLUMNS = [
 ]
 
 
-def row_to_example(row: dict) -> dict:
+def row_to_record(row: dict) -> dict:
+    """Convert a CSV row to a Nano Inference record."""
     features_text = ", ".join(
         f"{col}: {float(row[col]):.6f}" for col in FEATURE_COLUMNS
     )
-
-    event_data = {
-        "lens_parameters": {
-            "instruction": INSTRUCTION,
-            "inputs": [
-                {
-                    "type": "data.text",
-                    "event_data": {"contents": features_text},
-                }
-            ],
-        }
-    }
-
     return {
-        "type": "data.example",
-        "event_data": json.dumps(event_data),
+        "system": SYSTEM,
+        "instruction": INSTRUCTION,
+        "prompt": features_text,
     }
 
 
@@ -76,8 +67,8 @@ def main():
     with open(input_path, "r") as fin, open(output_path, "w") as fout:
         reader = csv.DictReader(fin)
         for row in reader:
-            example = row_to_example(row)
-            fout.write(json.dumps(example) + "\n")
+            record = row_to_record(row)
+            fout.write(json.dumps(record) + "\n")
             count += 1
             if count % 100_000 == 0:
                 print(f"  Converted {count:,} rows...")
@@ -88,7 +79,7 @@ def main():
     size = os.path.getsize(output_path)
     size_str = f"{size / 1024:.0f} KB" if size < 1024**2 else f"{size / 1024**2:.0f} MB"
 
-    print(f"\nDone! {count:,} examples in {elapsed:.1f}s ({size_str})")
+    print(f"\nDone! {count:,} records in {elapsed:.1f}s ({size_str})")
 
 
 if __name__ == "__main__":
