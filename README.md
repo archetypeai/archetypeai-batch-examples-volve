@@ -113,7 +113,7 @@ Notes:
 The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
 
 ```bash
-# Convert 30 rows for a quick test (recommended starting point)
+# Convert 200 rows for a quick test (recommended starting point)
 python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_200.jsonl --max-rows 200
 
 # Convert a larger batch
@@ -125,7 +125,7 @@ Each output line has `system` (with sensor definitions), `instruction`, and `pro
 {"system": "You are a drilling operations analyst...", "instruction": "Describe the current rig state...", "prompt": "BPOS: 10.02, DBTM: 259.92, ..."}
 ```
 
-> **Note:** Use `--max-rows` to limit the output size. Nano Inference generates up to 256 tokens per row, so large files (millions of rows) will take a very long time or timeout. Start with 30-1000 rows and scale up as needed. Omitting `--max-rows` converts all 7.4M rows, which is not recommended for Nano Inference.
+> **Note:** Use `--max-rows` to limit the output size. Nano Inference generates up to 256 tokens per row, so large files (millions of rows) will take a very long time or timeout. Start with 200-1000 rows and scale up as needed. Omitting `--max-rows` converts all 7.4M rows, which is not recommended for Nano Inference.
 
 ### Workflow
 
@@ -160,10 +160,10 @@ python 2_upload/upload_multipart.py data/volve_drilling.csv
 python 2_upload/upload_multipart.py data/volve_not_drilling.csv
 python 2_upload/upload_multipart.py data/volve_inference.csv
 
-# Quick test for Machine State pipeline (30-row sample)
+# Quick test for Machine State pipeline (200-row sample)
 python 2_upload/upload_multipart.py data/volve_quick_test_200.csv
 
-# Quick test for Nano Inference pipeline (30 prompts)
+# Quick test for Nano Inference pipeline (200 prompts)
 python 2_upload/upload_multipart.py data/volve_nano_200.jsonl
 ```
 
@@ -177,10 +177,10 @@ chmod +x 2_upload/upload_multipart.sh
 ./2_upload/upload_multipart.sh data/volve_not_drilling.csv
 ./2_upload/upload_multipart.sh data/volve_inference.csv
 
-# Quick test for Machine State pipeline (30-row sample)
+# Quick test for Machine State pipeline (200-row sample)
 ./2_upload/upload_multipart.sh data/volve_quick_test_200.csv
 
-# Quick test for Nano Inference pipeline (30 prompts)
+# Quick test for Nano Inference pipeline (200 prompts)
 ./2_upload/upload_multipart.sh data/volve_nano_200.jsonl
 ```
 
@@ -258,7 +258,7 @@ worker:
 - `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors
 - `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 2000 n-shot rows and `window_size: 64` yields ~1936 windows)
 
-#### Quick test (30-row sample)
+#### Quick test (200-row sample)
 
 Uses `volve_quick_test_200.csv` with the same n-shot files — fast way to verify the pipeline works:
 
@@ -370,7 +370,7 @@ worker:
       top_p: 0.8
 ```
 
-#### Quick test (30 prompts)
+#### Quick test (200 prompts)
 
 Uses `volve_nano_200.jsonl` — completes in a few minutes:
 
@@ -421,7 +421,7 @@ See also: [3_batch_jobs/create_nano_inference_job_curl.md](3_batch_jobs/create_n
 - Raw CSV input will result in `"error": "parse error"` for every line — must use JSONL format
 - The base Newton model (without fine-tuning) may not interpret sensor abbreviations correctly. Include sensor definitions in the `system` prompt for better results.
 - For classification tasks, use **Machine State Pipeline** instead — it works out of the box with n-shot examples
-- Large files (millions of rows) will timeout — keep batches to 30-1000 rows
+- Large files (millions of rows) will timeout — keep batches to 200-1000 rows
 
 ### Monitoring Jobs
 
