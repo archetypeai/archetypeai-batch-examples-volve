@@ -12,6 +12,7 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning on 
 | Download | `4_download_outputs/` | Paginated output download via presigned S3 URLs |
 | Evaluate | `5_evaluate/` | Compare predictions against ACTC ground truth (accuracy, F1) |
 | Optimize | `3_batch_jobs/optimize_config.py` | Grid search over pipeline hyperparameters |
+| Fine-tune | `1_prepare_data/convert_to_jsonl.py` | TBD — fine-tuning endpoint not yet available |
 
 **Two pipelines:**
 - **Machine State** — classifies sensor windows as "drilling" vs "not_drilling" using n-shot examples + KNN (67% accuracy on quick test, full run pending)
