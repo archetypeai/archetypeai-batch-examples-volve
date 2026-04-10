@@ -210,8 +210,19 @@ worker:
 - `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors
 - `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 2000 n-shot rows and `window_size: 64` yields ~1936 windows)
 
+**Python:**
 ```bash
-# Create via API
+python examples/create_batch_job.py
+```
+
+**Shell:**
+```bash
+chmod +x examples/create_batch_job.sh
+./examples/create_batch_job.sh
+```
+
+**curl:**
+```bash
 curl -s -X POST "$BASE_URL/jos/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
@@ -229,6 +240,8 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
     "parameters": { ... }
   }'
 ```
+
+See also: [examples/create_batch_job_curl.md](examples/create_batch_job_curl.md) for the full curl walkthrough.
 
 ### Pipeline 2: Nano Inference Pipeline
 
