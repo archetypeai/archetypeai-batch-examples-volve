@@ -1,6 +1,23 @@
 # Archetype AI Batch Processing Examples
 
-Examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform using real-world drilling sensor data.
+End-to-end examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform using real-world drilling sensor data from the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) (7.4M rows, 14 wells, North Sea 2007-2016).
+
+**What's included:**
+
+| Step | Script | Description |
+|------|--------|-------------|
+| Prepare data | `1_prepare_data/` | Convert WITSML XML → CSV, generate ACTC labels, split into n-shot/inference files |
+| Upload | `2_upload/` | Multipart presigned URL upload for large files (Python, shell, curl) |
+| Batch jobs | `3_batch_jobs/` | Machine State classification + Nano Inference text generation |
+| Download | `4_download_outputs/` | Paginated output download via presigned S3 URLs |
+| Evaluate | `5_evaluate/` | Compare predictions against ACTC ground truth (accuracy, F1) |
+| Optimize | `3_batch_jobs/optimize_config.py` | Grid search over pipeline hyperparameters |
+
+**Two pipelines:**
+- **Machine State** — classifies sensor windows as "drilling" vs "not_drilling" using n-shot examples + KNN (67% accuracy on quick test, full run pending)
+- **Nano Inference** — generates natural language descriptions of rig state from sensor readings
+
+**Quick start:** All data files are pre-built in `data/` via Git LFS. Skip to [step 4 (Upload)](#4-upload-files) to get started immediately.
 
 ## 1. Setup
 
