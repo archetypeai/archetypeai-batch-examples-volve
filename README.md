@@ -78,6 +78,10 @@ mkdir -p data/volve
 unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 ```
 
+This creates `data/volve/WITSML Realtime drilling data/` with well folders containing WITSML XML files.
+
+> **Note:** If you'd rather skip the download and conversion steps, the prepared CSV files are already included in `data/` — see `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, and `volve_nano_30.jsonl`.
+
 ## 3. Prepare Data
 
 Convert the raw WITSML XML files to CSV format and split into n-shot examples and inference data:
