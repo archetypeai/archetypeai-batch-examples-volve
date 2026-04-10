@@ -1,6 +1,6 @@
 # Archetype AI Batch Processing Examples
 
-Examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform.
+Examples for batch upload, batch inference, and batch fine-tuning on the Archetype AI platform using real-world drilling sensor data.
 
 ## 1. Setup
 
@@ -28,67 +28,87 @@ deactivate
 
 ## 2. Dataset
 
-These examples use the [HIGGS dataset](https://archive.ics.uci.edu/dataset/280/higgs) (UCI ML Repository) — 11M rows, 7.5 GB CSV, binary classification (Higgs boson signal vs background).
+These examples use the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) — real-time drilling sensor data from the Volve oil field in the North Sea (2007-2016). The dataset is provided by Equinor under a [modified CC BY 4.0 license](https://www.equinor.com/energy/volve-data-sharing) (free for commercial use, must not be resold, must attribute Equinor).
+
+### Why Drilling Data?
+
+A drilling rig does many things besides actually drilling a hole. During a well operation, the rig cycles through different activities:
+
+**Drilling** (actively cutting rock):
+- Bit is on bottom, rotating (RPM > 0)
+- Mud is flowing (SPPA > 0) to cool the bit and carry cuttings out
+- The hole is getting deeper (ROP > 0)
+
+**Not-drilling** (everything else):
+- **Tripping** — pulling drill pipe out to change the bit, or running it back in
+- **Connection** — adding a new pipe section (every ~30m of drilling, you stop and screw on another pipe)
+- **Circulation** — pumping mud without drilling to clean the hole
+- **Shut-in** — everything stopped (crew change, equipment issue, weather)
+
+**Why rig state classification matters:**
+
+1. **Safety** — detecting unexpected state changes (e.g., the rig thinks it's drilling but sensors show it stopped — could mean a stuck pipe)
+2. **Efficiency** — how much time is spent actually drilling vs. non-productive time? Rig time costs ~$500K-$1M/day
+3. **Anomaly detection** — sensor patterns during drilling that don't match normal drilling signatures could indicate equipment failure or geological problems
+4. **Automation** — real-time rig state classification enables automated drilling advisors
+
+### Sensor Channels
+
+The Volve dataset provides 9 surface drilling sensor channels:
+
+| Column | Description | Unit |
+|--------|-------------|------|
+| `DATE_TIME` | Timestamp (Unix epoch) | seconds |
+| `BPOS` | Block Position — height of the traveling block | m |
+| `DBTM` | Bit Depth — how deep the drill bit is | m |
+| `FLWI` | Flow In — mud flow rate into the hole | L/min |
+| `HDTH` | Hole Depth — total depth of the hole | m |
+| `HKLD` | Hookload — weight hanging from the hook | kkgf |
+| `ROP` | Rate of Penetration — drilling speed | m/h |
+| `RPM` | Rotary Speed — drill string rotation | rpm |
+| `SPPA` | Standpipe Pressure — mud pump pressure | kPa |
+| `WOB` | Weight on Bit — downward force on the rock | kkgf |
+
+### Download
+
+Download the "WITSML Realtime drilling data" from the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) (requires free registration via Databricks Marketplace). Place the zip file in `Downloads/volve-data-village/`.
 
 ```bash
-mkdir -p data
-curl -L -o data/higgs.zip https://archive.ics.uci.edu/static/public/280/higgs.zip
-cd data && unzip higgs.zip && gunzip HIGGS.csv.gz && cd ..
+mkdir -p data/volve
+unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 ```
 
 ## 3. Prepare Data
 
-Split the raw `HIGGS.csv` into files for n-shot examples, batch inference, fine-tuning, and evaluation:
+Convert the raw WITSML XML files to CSV format and split into n-shot examples and inference data:
 
 ```bash
-python prepare_data.py
+python volve_to_csv.py
 ```
 
-This produces the following files in `data/`:
+This parses 7,150 WITSML XML files across 14 wells and produces:
 
 | File | Rows | Size | Description |
 |------|------|------|-------------|
-| `higgs_boson.csv` | 1,000 | 702 KB | N-shot examples — Higgs boson signal (label=1) |
-| `higgs_no_boson.csv` | 1,000 | 702 KB | N-shot examples — background (label=0) |
-| `higgs_no_label.csv` | 11,000,000 | 7.34 GB | All rows with label removed — for batch inference |
-| `higgs_train.csv` | 8,798,400 | 5.89 GB | 80% training split — for fine-tuning Newton |
-| `higgs_test_label.csv` | 2,199,600 | 1.47 GB | 20% test split with labels — ground truth |
-| `higgs_test_no_label.csv` | 2,199,600 | 1.47 GB | 20% test split without labels — for inference |
+| `volve_drilling.csv` | 2,000 | 253 KB | N-shot examples — drilling class |
+| `volve_not_drilling.csv` | 2,000 | 226 KB | N-shot examples — not-drilling class |
+| `volve_inference.csv` | 7,415,900 | 845 MB | All wells combined — for batch inference |
+| `volve_csv/*.csv` | varies | varies | Per-well CSVs (with ACTC rig mode column) |
 
 Notes:
-- All files include a `timestamp` column (synthetic Unix timestamps, 1s intervals) required by the machine-state pipeline
-- All files include a header row with column names
-- Labels are integer `1` (boson) / `0` (no boson)
-- The 2,000 n-shot samples are excluded from train/test splits
-- Dataset is roughly balanced: 5.83M boson vs 5.17M no-boson
+- Drilling/not-drilling classification uses a sensor heuristic: `ROP > 0 AND RPM > 0 AND SPPA > 0`
+- The 4,000 n-shot samples are excluded from the inference file
+- Dataset breakdown: ~2M drilling rows (27%) vs ~5.4M not-drilling rows (73%)
 - Random seed is fixed (42) for reproducibility
-
-### CSV Schema
-
-Files with labels (`higgs_boson.csv`, `higgs_no_boson.csv`, `higgs_train.csv`, `higgs_test_label.csv`):
-```
-timestamp, label, lepton_pT, lepton_eta, ..., m_wbb, m_wwbb
-```
-
-Files without labels (`higgs_no_label.csv`, `higgs_test_no_label.csv`):
-```
-timestamp, lepton_pT, lepton_eta, ..., m_wbb, m_wwbb
-```
-
-The batch job config must specify these explicitly:
-```yaml
-data_columns: ["lepton_pT", "lepton_eta", ..., "m_wbb", "m_wwbb"]
-timestamp_column: "timestamp"
-```
+- Column names are mapped to match the `omega_1_3_surface` model's expected format
 
 ### Workflow
 
 ```
-1. Upload n-shot examples (higgs_boson.csv, higgs_no_boson.csv) to Newton
-2. Run batch inference on higgs_no_label.csv using Newton with n-shot examples
-3. Fine-tune Newton with higgs_train.csv
-4. Run batch inference on higgs_test_no_label.csv using fine-tuned Newton
-5. Compare results against higgs_test_label.csv
+1. Upload n-shot examples (volve_drilling.csv, volve_not_drilling.csv) to Newton
+2. Upload inference data (volve_inference.csv)
+3. Run Machine State batch job to classify drilling vs. not-drilling
+4. Download outputs and evaluate predictions
 ```
 
 ## 4. Upload Files
@@ -108,38 +128,9 @@ Upload all prepared files:
 ### Python
 
 ```bash
-python examples/upload_multipart.py data/higgs_no_label.csv
-python examples/upload_multipart.py data/higgs_boson.csv
-python examples/upload_multipart.py data/higgs_no_boson.csv
-python examples/upload_multipart.py data/higgs_train.csv
-python examples/upload_multipart.py data/higgs_test_no_label.csv
-```
-
-Output:
-```
-============================================================
- Archetype AI Multipart Upload
-============================================================
- File:     higgs_no_label.csv
- Size:     7.23 GB (7,760,498,260 bytes)
- Endpoint: https://api.dev.u1.archetypeai.app/v0.5
-============================================================
-
-[1/3] Initiating upload...
-      upload_id : upl_0h5k39kek18598nph15s7bgr2c
-      file_uid  : fil_1xvbr0n4yd896s1hmhfj33h1wb
-      strategy  : multipart
-      parts     : 19 x 400 MB
-
-[2/3] Uploading 19 parts to S3...
-
-  Part  1/19  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   5.4%    400 MB/7.23 GB   31.8 MB/s  ETA   224s
-  Part  2/19  [████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  10.8%    800 MB/7.23 GB   30.7 MB/s  ETA   214s
-  ...
-
-[3/3] Completing upload...
-      file_uid: fil_1xvbr0n4yd896s1hmhfj33h1wb
-      status:   Registered
+python examples/upload_multipart.py data/volve_drilling.csv
+python examples/upload_multipart.py data/volve_not_drilling.csv
+python examples/upload_multipart.py data/volve_inference.csv
 ```
 
 ### Shell Script
@@ -147,11 +138,9 @@ Output:
 ```bash
 chmod +x examples/upload_multipart.sh
 
-./examples/upload_multipart.sh data/higgs_no_label.csv
-./examples/upload_multipart.sh data/higgs_boson.csv
-./examples/upload_multipart.sh data/higgs_no_boson.csv
-./examples/upload_multipart.sh data/higgs_train.csv
-./examples/upload_multipart.sh data/higgs_test_no_label.csv
+./examples/upload_multipart.sh data/volve_drilling.csv
+./examples/upload_multipart.sh data/volve_not_drilling.csv
+./examples/upload_multipart.sh data/volve_inference.csv
 ```
 
 ### curl Commands
@@ -160,7 +149,7 @@ Step-by-step curl commands for manual execution. See [examples/upload_multipart_
 
 ```bash
 # Initiate upload for each file
-for FILE in higgs_no_label.csv higgs_boson.csv higgs_no_boson.csv higgs_train.csv higgs_test_no_label.csv; do
+for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv; do
   FILE_SIZE=$(stat -f%z "data/$FILE")
   curl -s -X POST "$BASE_URL/files/uploads/initiate" \
     -H "Authorization: Bearer $ATAI_API_KEY" \
@@ -181,46 +170,45 @@ Classifies time-series sensor data using n-shot examples. Uses the Newton founda
 **Pipeline key:** `machine-state-job-pipeline`
 
 **Available model types:**
-- `omega_1_3_surface` — SLB surface sensor monitoring
-- `omega_1_3_power_drive` — SLB downhole power drive monitoring
-
-**Limitations:**
-- Both models were trained on SLB (Schlumberger) drilling sensor data with **9 sensor channels**. Using more or fewer columns will cause shape mismatch errors.
-- The HIGGS dataset has 28 feature columns, so we use only **9 of 28** columns to match the model's expected input shape.
-- `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors.
-- `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 1000 n-shot rows and `window_size: 64` yields ~936 windows).
+- `omega_1_3_surface` — surface sensor monitoring (9 channels)
+- `omega_1_3_power_drive` — downhole power drive monitoring (9 channels)
 
 **Input ports:**
 - `worker.inference` — files to classify
 - `worker.n_shots` — labeled example files with `metadata.class`
 
-**Working config (HIGGS with 9 columns):**
+**Config:**
 ```yaml
 worker:
   parallelism: 1
   config:
     model_type: "omega_1_3_surface"
     batch_size: 8
-    timestamp_column: "timestamp"
+    timestamp_column: "DATE_TIME"
     data_columns:
-      - "lepton_pT"
-      - "lepton_eta"
-      - "lepton_phi"
-      - "missing_energy_magnitude"
-      - "missing_energy_phi"
-      - "jet_1_pt"
-      - "jet_1_eta"
-      - "jet_1_phi"
-      - "jet_1_b-tag"
+      - "BPOS"
+      - "DBTM"
+      - "FLWI"
+      - "HDTH"
+      - "HKLD"
+      - "ROP"
+      - "RPM"
+      - "SPPA"
+      - "WOB"
     reader_config:
       window_size: 64
       step_size: 1
     classifier_config:
-      n_neighbors: 3
+      n_neighbors: 5
       metric: "euclidean"
       weights: "uniform"
     flush_every_n_iteration: 1000
 ```
+
+**Notes:**
+- Both models expect exactly **9 sensor channels** — using more or fewer columns will cause shape mismatch errors
+- `window_size` must be set appropriately (e.g., 64) — a value of 1 causes tensor shape errors
+- `step_size` for n-shot files must be small enough to produce sufficient windows for the classifier (e.g., `step_size: 1` with 2000 n-shot rows and `window_size: 64` yields ~1936 windows)
 
 ```bash
 # Create via API
@@ -228,14 +216,14 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "higgs-machine-state",
+    "name": "volve-drilling-classification",
     "pipeline_type": "batch",
     "pipeline_key": "machine-state-job-pipeline",
     "inputs": {
-      "worker.inference": [{"file_id": "higgs_no_label.csv"}],
+      "worker.inference": [{"file_id": "volve_inference.csv"}],
       "worker.n_shots": [
-        {"file_id": "higgs_boson.csv", "metadata": {"class": "boson"}},
-        {"file_id": "higgs_no_boson.csv", "metadata": {"class": "no_boson"}}
+        {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
+        {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}}
       ]
     },
     "parameters": { ... }
@@ -267,7 +255,7 @@ At least one text field should be non-empty. See [input format reference](https:
 
 Use `convert_to_inference_jsonl.py` to convert CSV data to the required JSONL format:
 ```bash
-python convert_to_inference_jsonl.py data/higgs_no_label.csv data/higgs_inference.jsonl --max-rows 100
+python convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
 ```
 
 **Config:**
@@ -282,36 +270,6 @@ worker:
       temperature: 0.7
       top_k: 20
       top_p: 0.8
-```
-
-```bash
-# Create via API
-curl -s -X POST "$BASE_URL/jos/jobs" \
-  -H "Authorization: Bearer $ATAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "higgs-nano-inference",
-    "pipeline_type": "batch",
-    "pipeline_key": "nano-inference-pipeline",
-    "inputs": {
-      "worker.data": [{"file_id": "higgs_inference.jsonl"}]
-    },
-    "parameters": {
-      "worker": {
-        "parallelism": 1,
-        "config": {
-          "generation": {
-            "do_sample": true,
-            "max_new_tokens": 256,
-            "repetition_penalty": 1,
-            "temperature": 0.7,
-            "top_k": 20,
-            "top_p": 0.8
-          }
-        }
-      }
-    }
-  }'
 ```
 
 **Important notes:**
@@ -349,40 +307,23 @@ See also: [examples/download_outputs_curl.md](examples/download_outputs_curl.md)
 
 ## 6. Evaluation
 
-Compare Machine State predictions against ground truth labels in HIGGS.csv:
+Compare Machine State predictions against ground truth:
 
 ```bash
 python evaluate_results.py <job_id>
 ```
 
-This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics.
-
-### Results (Machine State, omega_1_3_surface)
-
-```
-  Predictions:    10,999,937
-  Matched:        10,999,937
-
-  Confusion Matrix
-                         Pred Boson  Pred No-Boson
-  Actual Boson            2,903,286      2,925,801
-  Actual No-Boson         2,575,621      2,595,229
-
-  Accuracy:           0.4999  (5,498,515 / 10,999,937)
-  Precision:          0.5299  (boson)
-  Recall:             0.4981  (boson)
-  F1 Score:           0.5135
-```
-
-**~50% accuracy (random chance).** This is expected because the `omega_1_3_surface` model was trained on SLB drilling sensor data (9 specific channels), not particle physics features. Newton's embeddings encode drilling sensor patterns, so the KNN classifier cannot find meaningful separations in HIGGS feature space.
-
-This baseline confirms that:
-- The batch pipeline works end-to-end (11M rows processed in 4.8 hours on GPU)
-- Domain-appropriate fine-tuning is needed to beat random chance on cross-domain data
+This downloads all output artifacts, maps predictions back to original rows via the `TimePoint` (timestamp) column, and computes accuracy metrics (confusion matrix, precision, recall, F1 score).
 
 ## 7. Fine-Tuning
 
 TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
+
+## Data Attribution
+
+The drilling sensor data used in these examples is from the **Equinor Volve Data Village**, released under a modified CC BY 4.0 license. The data may be used for commercial and non-commercial purposes but may not be resold.
+
+> Data provided by Equinor and the former Volve license partners (ExxonMobil Exploration & Production Norway AS and Bayerngas Norge AS). [Terms and Conditions](https://www.equinor.com/energy/volve-data-sharing).
 
 ## API Reference
 
