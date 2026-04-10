@@ -80,7 +80,7 @@ unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 
 This creates `data/volve/WITSML Realtime drilling data/` with well folders containing WITSML XML files.
 
-> **Note:** If you'd rather skip the download and conversion steps, the prepared CSV files are already included in `data/` — see `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, and `volve_nano_30.jsonl`.
+> **Note:** If you'd rather skip the download and conversion steps, the prepared CSV files are already included in `data/` — see `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, and `volve_nano_200.jsonl`.
 
 ## 3. Prepare Data
 
@@ -114,7 +114,7 @@ The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSO
 
 ```bash
 # Convert 30 rows for a quick test (recommended starting point)
-python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_30.jsonl --max-rows 30
+python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_200.jsonl --max-rows 200
 
 # Convert a larger batch
 python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_1000.jsonl --max-rows 1000
@@ -164,7 +164,7 @@ python 2_upload/upload_multipart.py data/volve_inference.csv
 python 2_upload/upload_multipart.py data/volve_quick_test_200.csv
 
 # Quick test for Nano Inference pipeline (30 prompts)
-python 2_upload/upload_multipart.py data/volve_nano_30.jsonl
+python 2_upload/upload_multipart.py data/volve_nano_200.jsonl
 ```
 
 ### Shell Script
@@ -181,7 +181,7 @@ chmod +x 2_upload/upload_multipart.sh
 ./2_upload/upload_multipart.sh data/volve_quick_test_200.csv
 
 # Quick test for Nano Inference pipeline (30 prompts)
-./2_upload/upload_multipart.sh data/volve_nano_30.jsonl
+./2_upload/upload_multipart.sh data/volve_nano_200.jsonl
 ```
 
 ### curl Commands
@@ -202,7 +202,7 @@ done
 # JSONL file for Nano Inference (small enough for simple upload)
 curl -s -X POST "$BASE_URL/files" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
-  -F "file=@data/volve_nano_30.jsonl;type=text/plain"
+  -F "file=@data/volve_nano_200.jsonl;type=text/plain"
 ```
 
 ## 5. Batch Jobs
@@ -354,7 +354,7 @@ Text generation inference using Newton's language capabilities on input data fil
 
 At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-2-convert-csv-to-jsonl-for-nano-inference).
 
-**Prerequisites:** Upload `volve_nano_30.jsonl` first (see [step 4](#4-upload-files)).
+**Prerequisites:** Upload `volve_nano_200.jsonl` first (see [step 4](#4-upload-files)).
 
 **Config:**
 ```yaml
@@ -372,7 +372,7 @@ worker:
 
 #### Quick test (30 prompts)
 
-Uses `volve_nano_30.jsonl` — completes in a few minutes:
+Uses `volve_nano_200.jsonl` — completes in a few minutes:
 
 **Python:**
 ```bash
@@ -395,7 +395,7 @@ curl -s -X POST "$BASE_URL/jos/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "nano-inference-pipeline",
     "inputs": {
-      "worker.data": [{"file_id": "volve_nano_30.jsonl"}]
+      "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
     },
     "parameters": {
       "worker": {

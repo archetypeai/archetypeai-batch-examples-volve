@@ -32,7 +32,7 @@ JOB_RESPONSE=$(/usr/bin/curl -s -X POST "$BASE_URL/jos/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "nano-inference-pipeline",
     "inputs": {
-      "worker.data": [{"file_id": "volve_nano_30.jsonl"}]
+      "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
     },
     "parameters": {
       "worker": {
