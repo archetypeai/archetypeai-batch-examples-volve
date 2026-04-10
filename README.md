@@ -84,6 +84,8 @@ This creates `data/volve/WITSML Realtime drilling data/` with well folders conta
 
 ## 3. Prepare Data
 
+### Step 1: Convert WITSML XML to CSV
+
 Convert the raw WITSML XML files to CSV format and split into n-shot examples and inference data:
 
 ```bash
@@ -105,6 +107,23 @@ Notes:
 - Dataset breakdown: ~2M drilling rows (27%) vs ~5.4M not-drilling rows (73%)
 - Random seed is fixed (42) for reproducibility
 - Column names are mapped to match the `omega_1_3_surface` model's expected format
+
+### Step 2: Convert CSV to JSONL (for Nano Inference)
+
+The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
+
+```bash
+# Convert 30 rows for a quick test
+python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_30.jsonl --max-rows 30
+
+# Or convert more rows
+python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 1000
+```
+
+Each output line has `system` (with sensor definitions), `instruction`, and `prompt` fields:
+```json
+{"system": "You are a drilling operations analyst...", "instruction": "Describe the current rig state...", "prompt": "BPOS: 10.02, DBTM: 259.92, ..."}
+```
 
 ### Workflow
 
