@@ -134,9 +134,16 @@ Upload all prepared files:
 ### Python
 
 ```bash
+# Machine State pipeline files
 python 2_upload/upload_multipart.py data/volve_drilling.csv
 python 2_upload/upload_multipart.py data/volve_not_drilling.csv
 python 2_upload/upload_multipart.py data/volve_inference.csv
+
+# Nano Inference pipeline files
+python 2_upload/upload_multipart.py data/volve_nano_30.jsonl
+
+# Quick test file (30-row sample)
+python 2_upload/upload_multipart.py data/volve_drilling_30.csv
 ```
 
 ### Shell Script
@@ -144,9 +151,16 @@ python 2_upload/upload_multipart.py data/volve_inference.csv
 ```bash
 chmod +x 2_upload/upload_multipart.sh
 
+# Machine State pipeline files
 ./2_upload/upload_multipart.sh data/volve_drilling.csv
 ./2_upload/upload_multipart.sh data/volve_not_drilling.csv
 ./2_upload/upload_multipart.sh data/volve_inference.csv
+
+# Nano Inference pipeline files
+./2_upload/upload_multipart.sh data/volve_nano_30.jsonl
+
+# Quick test file (30-row sample)
+./2_upload/upload_multipart.sh data/volve_drilling_30.csv
 ```
 
 ### curl Commands
@@ -155,7 +169,7 @@ Step-by-step curl commands for manual execution. See [2_upload/upload_multipart_
 
 ```bash
 # Initiate upload for each file
-for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv; do
+for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv volve_drilling_30.csv; do
   FILE_SIZE=$(stat -f%z "data/$FILE")
   curl -s -X POST "$BASE_URL/files/uploads/initiate" \
     -H "Authorization: Bearer $ATAI_API_KEY" \
@@ -163,6 +177,11 @@ for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv; do
     -d "{\"filename\":\"$FILE\",\"file_type\":\"text/csv\",\"num_bytes\":$FILE_SIZE}"
   echo
 done
+
+# JSONL file for Nano Inference (small enough for simple upload)
+curl -s -X POST "$BASE_URL/files" \
+  -H "Authorization: Bearer $ATAI_API_KEY" \
+  -F "file=@data/volve_nano_30.jsonl;type=text/plain"
 ```
 
 ## 5. Batch Jobs
