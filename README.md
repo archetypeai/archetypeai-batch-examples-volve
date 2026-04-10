@@ -533,7 +533,39 @@ Each output line contains:
 {"line_index": 0, "prediction": "Based on the sensor readings, the rig appears to be idle..."}
 ```
 
-## 7. Fine-Tuning
+## 7. Config Optimization
+
+Before fine-tuning, you can improve results by optimizing the Machine State pipeline config. The optimizer script runs a grid search over key hyperparameters using the 200-row quick test dataset:
+
+```bash
+python 3_batch_jobs/optimize_config.py
+```
+
+This searches over:
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `window_size` | 16, 32, 64, 128 | Time steps per classification window |
+| `n_neighbors` | 3, 5, 7, 11 | KNN neighbors for classification |
+| `metric` | euclidean, cosine, manhattan | Distance metric |
+| `weights` | uniform, distance | KNN weight function |
+
+**96 combinations** — each takes ~30 seconds (most is model loading), so the full search completes in ~48 minutes.
+
+For each combination, the script:
+1. Creates a batch job with the config
+2. Waits for completion
+3. Downloads predictions and evaluates against ACTC ground truth
+4. Tracks accuracy, precision, recall, and F1
+
+Output:
+- Ranked results table showing all combinations
+- Best config printed as ready-to-use YAML
+- Results saved to `data/optimization_results.json`
+
+Once you find the best config, use it for the full run on `volve_inference.csv`.
+
+## 8. Fine-Tuning
 
 TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `1_prepare_data/convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
 
