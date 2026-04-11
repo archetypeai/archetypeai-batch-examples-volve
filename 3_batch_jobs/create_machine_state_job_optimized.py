@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Create and monitor a Machine State batch job on the Archetype AI platform.
+Create and monitor a Machine State batch job with optimized config.
 
-Classifies drilling sensor data into drilling vs. not-drilling using
-n-shot examples and KNN over Newton embeddings.
+Uses the F1-optimized config found by optimize_config.py:
+  window_size=128, n_neighbors=5, metric=euclidean, weights=uniform
 
 Usage:
-    python create_machine_state_job.py
+    python create_machine_state_job_optimized.py
 
 Flow:
     1. POST /v0.5/jos/jobs          → create batch job
@@ -38,10 +38,10 @@ BASE_URL = f"{API_ENDPOINT}/v0.5"
 AUTH = {"Authorization": f"Bearer {API_KEY}"}
 
 # ---------------------------------------------------------------------------
-# Job configuration
+# Optimized job configuration (F1-optimized via optimize_config.py)
 # ---------------------------------------------------------------------------
 JOB_PAYLOAD = {
-    "name": "volve-drilling-classification",
+    "name": "volve-drilling-optimized",
     "pipeline_type": "batch",
     "pipeline_key": "machine-state-job-pipeline",
     "inputs": {
@@ -69,7 +69,7 @@ JOB_PAYLOAD = {
                 ],
                 "flush_every_n_iteration": 1000,
                 "model_type": "omega_1_3_surface",
-                "reader_config": {"step_size": 1, "window_size": 64},
+                "reader_config": {"step_size": 1, "window_size": 128},
                 "timestamp_column": "DATE_TIME",
             },
         }
@@ -98,16 +98,6 @@ def get_job(job_id: str) -> dict:
     return resp.json()
 
 
-def list_jobs(limit: int = 10, offset: int = 0) -> dict:
-    resp = requests.get(
-        f"{BASE_URL}/jos/jobs",
-        headers=AUTH,
-        params={"limit": limit, "offset": offset},
-    )
-    resp.raise_for_status()
-    return resp.json()
-
-
 def get_events(job_id: str, limit: int = 100) -> dict:
     resp = requests.get(
         f"{BASE_URL}/jos/jobs/{job_id}/events",
@@ -123,8 +113,11 @@ def get_events(job_id: str, limit: int = 100) -> dict:
 # ---------------------------------------------------------------------------
 def main():
     print("=" * 60)
-    print(" Archetype AI Batch Job")
+    print(" Archetype AI Batch Job (Optimized Config)")
     print("=" * 60)
+    print()
+    print("  Config: window_size=128, n_neighbors=5, euclidean, uniform")
+    print("  Optimized for: F1 Score")
     print()
 
     # --- Step 1: Create job ------------------------------------------------
@@ -148,7 +141,6 @@ def main():
         status = job["status"]
 
         if status != prev_status:
-            elapsed = ""
             if job.get("started_at") and job.get("created_at"):
                 print(f"      [{time.strftime('%H:%M:%S')}] {status}")
             prev_status = status
