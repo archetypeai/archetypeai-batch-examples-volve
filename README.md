@@ -592,8 +592,36 @@ Output:
 - Ranked results table showing all combinations
 - Best config printed as ready-to-use YAML
 - Results saved to `data/optimization_results.json`
+- Supports resume — re-run after interruption and it skips completed combinations
 
-Once you find the best config, use it for the full run on `volve_inference.csv`.
+Once you find the best config, use it for the full run on `volve_inference.csv`:
+
+```bash
+# Default config (window=64)
+python 3_batch_jobs/create_machine_state_job.py
+
+# Optimized config (window=128, F1-optimized)
+python 3_batch_jobs/create_machine_state_job_optimized.py
+```
+
+### Full Run Results (7.3M rows)
+
+| Metric | Default (window=64, k=5) | Optimized (window=128, k=5) |
+|--------|--------------------------|----------------------------|
+| **Accuracy** | 90.95% | **91.00%** |
+| **Precision** | **79.71%** | 78.87% |
+| **Recall** | 84.37% | **86.18%** |
+| **F1 Score** | 81.97% | **82.36%** |
+| Drilling predictions | 25.8% | 26.6% |
+| Not-drilling predictions | 74.2% | 73.4% |
+
+Both configs achieve ~91% accuracy and ~82% F1 on the full dataset. The optimized config (window=128) has slightly better recall and F1, catching more actual drilling events.
+
+**Key findings:**
+- The `omega_1_3_surface` model works very well on real Volve drilling data (91% accuracy)
+- Quick test results (200 rows) underestimate full-run performance — the model benefits from more context at scale
+- The gap between default and optimized configs is small at full scale (~0.4% F1), unlike the quick test where it appeared larger
+- Both configs significantly outperform random chance (76% accuracy for always predicting not-drilling)
 
 ## 8. Fine-Tuning
 
