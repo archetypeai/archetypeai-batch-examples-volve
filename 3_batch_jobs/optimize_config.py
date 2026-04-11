@@ -205,8 +205,23 @@ def main():
     print(f"Total combinations: {total_combos}")
     print()
 
+    # Resume from previous results if available
+    results_file = os.path.join(DATA_DIR, "optimization_results.json")
+    previous_results = {}
+    if os.path.exists(results_file):
+        with open(results_file) as f:
+            prev = json.load(f)
+        for r in prev:
+            if r.get("status") == "COMPLETED":
+                key = f"w{r['window_size']}-k{r['n_neighbors']}-{r['metric']}-{r['weights']}"
+                previous_results[key] = r
+        if previous_results:
+            print(f"Resuming: found {len(previous_results)} completed results from previous run")
+            print()
+
     results = []
     start_time = time.time()
+    skipped = 0
 
     for i, combo in enumerate(combos):
         params = dict(zip(keys, combo))
@@ -221,6 +236,15 @@ def main():
         }
 
         name = f"opt-w{params['window_size']}-k{params['n_neighbors']}-{params['metric'][:3]}-{params['weights'][:3]}"
+        resume_key = f"w{params['window_size']}-k{params['n_neighbors']}-{params['metric']}-{params['weights']}"
+
+        # Skip if already completed in a previous run
+        if resume_key in previous_results:
+            results.append(previous_results[resume_key])
+            skipped += 1
+            print(f"[{i+1}/{total_combos}] {name}... SKIPPED (cached acc={previous_results[resume_key]['accuracy']:.3f})")
+            continue
+
         print(f"[{i+1}/{total_combos}] {name}...", end=" ", flush=True)
 
         try:
@@ -254,7 +278,14 @@ def main():
             print(f"ERROR: {e}")
             results.append({**params, "accuracy": 0, "f1": 0, "status": f"ERROR: {e}"})
 
+        # Save after each iteration (for resume on failure)
+        with open(results_file, "w") as f:
+            json.dump(results, f, indent=2)
+
     elapsed = time.time() - start_time
+
+    if skipped:
+        print(f"\n  ({skipped} combinations restored from cache, {total_combos - skipped} newly evaluated)")
 
     # Sort by accuracy
     results.sort(key=lambda r: r.get("accuracy", 0), reverse=True)
