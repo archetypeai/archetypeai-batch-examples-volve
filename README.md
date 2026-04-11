@@ -508,27 +508,39 @@ python 1_prepare_data/generate_labels.py
 python 5_evaluate/evaluate_results.py <quick_test_job_id>
 ```
 
-Quick test results (200-row sample, ACTC-based labels):
+#### Config optimization results
 
-```
-  Predictions:           137
-  Matched:               137
+We ran a grid search over 96 hyperparameter combinations using the 200-row quick test (see [step 7](#7-config-optimization)). Key findings:
 
-  Confusion Matrix
-                         Pred Drill  Pred Not-Drill
-  Actual Drill                   10              25
-  Actual Not-Drill               20              82
+**Top 5 by Accuracy:**
 
-  Accuracy:           0.6715  (92 / 137)
-  Precision:          0.3333  (drilling)
-  Recall:             0.2857  (drilling)
-  F1 Score:           0.3077
+| window | k | metric | weights | Accuracy | F1 |
+|--------|---|--------|---------|----------|-----|
+| 16 | 3 | euclidean | uniform | **69.7%** | 0.300 |
+| 16 | 3 | cosine | uniform | 69.2% | 0.296 |
+| 64 | 3 | euclidean | uniform | 68.6% | 0.295 |
+| 16 | 5 | euclidean | uniform | 67.6% | 0.231 |
+| 64 | 5 | euclidean | uniform | 67.2% | 0.308 |
 
-  Drilling predictions:             30  (21.9%)
-  Not-drilling predictions:        107  (78.1%)
-```
+**Top 5 by F1 Score:**
 
-**67% accuracy** — the model correctly classifies most not-drilling states. It's biased toward "not_drilling" (78% of predictions), which reflects the dataset distribution (76% not-drilling). The model is conservative about predicting "drilling," resulting in lower recall for that class.
+| window | k | metric | weights | Accuracy | F1 |
+|--------|---|--------|---------|----------|-----|
+| 128 | 5 | euclidean | uniform | 58.9% | **0.400** |
+| 128 | 7 | euclidean | uniform | 58.9% | 0.400 |
+| 128 | 7 | cosine | uniform | 58.9% | 0.400 |
+| 128 | 11 | euclidean | distance | 54.8% | 0.353 |
+| 128 | 5 | manhattan | uniform | 53.4% | 0.346 |
+
+**Recommendation: optimize for F1 (`window_size=128, k=5, euclidean, uniform`)**
+
+For drilling operations, F1 is more meaningful than accuracy because the dataset is 76% not-drilling. A model that always predicts "not_drilling" would achieve 76% accuracy while being useless. The F1-optimized config catches 45% of actual drilling events (vs 27% with the accuracy-optimized config), which is more useful for safety monitoring and efficiency tracking.
+
+**Key observations:**
+- `window_size` is the most impactful parameter — small windows favor accuracy, large windows favor F1
+- `metric` and `weights` have minimal impact — euclidean ≈ cosine, uniform ≈ distance
+- `n_neighbors` has moderate impact — k=3 best for accuracy, k=5-7 best for F1
+- Base model performance (40% F1) confirms that fine-tuning is needed for production use
 
 #### Full run evaluation
 
@@ -536,7 +548,7 @@ Quick test results (200-row sample, ACTC-based labels):
 python 5_evaluate/evaluate_results.py <full_run_job_id>
 ```
 
-This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score. Full run results will be more representative than the 200-row quick test.
+This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score. Full run results on 7.3M rows will be more representative than the 200-row quick test.
 
 ### Nano Inference Pipeline
 
