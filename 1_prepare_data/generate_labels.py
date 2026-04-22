@@ -153,7 +153,7 @@ def main():
     print("  N-shot samples are excluded from inference and quick test files.")
     print()
     print("Done! Next steps:")
-    print("  python 1_prepare_data/convert_to_inference_jsonl.py data/volve_inference.csv data/volve_nano_200.jsonl --max-rows 200")
+    print("  python 1_prepare_data/convert_to_activity_detection_jsonl.py data/volve_inference.csv data/volve_activity_200.jsonl --max-rows 200")
     print("  python 2_upload/upload_multipart.py data/volve_inference.csv")
 
 

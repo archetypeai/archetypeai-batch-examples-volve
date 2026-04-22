@@ -32,7 +32,7 @@ JOB_RESPONSE=$(/usr/bin/curl -s -X POST "$BASE_URL/batch/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "activity-detection",
     "inputs": {
-      "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
+      "worker.data": [{"file_id": "volve_activity_200.jsonl"}]
     },
     "parameters": {
       "worker": {

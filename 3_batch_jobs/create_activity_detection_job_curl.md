@@ -17,7 +17,7 @@ Each input file must be JSONL with `system`, `instruction`, and/or `prompt` fiel
 {"system": "You are a drilling analyst.", "instruction": "Describe the rig state.", "prompt": "BPOS: 10.02, DBTM: 259.92, ..."}
 ```
 
-Use `1_prepare_data/convert_to_inference_jsonl.py` to convert CSV to JSONL.
+Use `1_prepare_data/convert_to_activity_detection_jsonl.py` to convert CSV to JSONL.
 
 ## Step 1: Create an Activity Detection Job
 
@@ -30,7 +30,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
     "pipeline_type": "batch",
     "pipeline_key": "activity-detection",
     "inputs": {
-      "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
+      "worker.data": [{"file_id": "volve_activity_200.jsonl"}]
     },
     "parameters": {
       "worker": {

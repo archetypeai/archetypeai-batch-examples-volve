@@ -3,7 +3,7 @@
 Convert drilling CSV to JSONL format for Activity Detection Pipeline.
 
 Usage:
-    python convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
+    python convert_to_activity_detection_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
 
 Input format (per line):
     {"system": "...", "instruction": "...", "prompt": "..."}
