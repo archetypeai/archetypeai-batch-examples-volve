@@ -1,6 +1,6 @@
-# Create Nano Inference Job with curl (step-by-step)
+# Create Activity Detection Job with curl (step-by-step)
 
-Manual curl commands for creating and monitoring Nano Inference batch jobs.
+Manual curl commands for creating and monitoring Activity Detection batch jobs.
 
 ## Prerequisites
 
@@ -19,16 +19,16 @@ Each input file must be JSONL with `system`, `instruction`, and/or `prompt` fiel
 
 Use `1_prepare_data/convert_to_inference_jsonl.py` to convert CSV to JSONL.
 
-## Step 1: Create a Nano Inference Job
+## Step 1: Create an Activity Detection Job
 
 ```bash
 curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "volve-nano-inference",
+    "name": "volve-activity-detection",
     "pipeline_type": "batch",
-    "pipeline_key": "nano-inference-pipeline",
+    "pipeline_key": "activity-detection",
     "inputs": {
       "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
     },
@@ -54,9 +54,9 @@ Response:
 ```json
 {
   "id": "job_...",
-  "name": "volve-nano-inference",
+  "name": "volve-activity-detection",
   "pipeline_type": "batch",
-  "pipeline_key": "nano-inference-pipeline",
+  "pipeline_key": "activity-detection",
   "pipeline_version": "0.0.20",
   "status": "PENDING",
   ...

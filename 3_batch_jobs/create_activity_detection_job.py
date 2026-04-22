@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Create and monitor a Nano Inference batch job on the Archetype AI platform.
+Create and monitor a Activity Detection batch job on the Archetype AI platform.
 
 Runs Newton's language generation on JSONL input files to analyze
 sensor data and produce natural language descriptions.
 
 Usage:
-    python create_nano_inference_job.py
+    python create_activity_detection_job.py
 
 Flow:
     1. POST /v0.5/batch/jobs          → create batch job
@@ -41,9 +41,9 @@ AUTH = {"Authorization": f"Bearer {API_KEY}"}
 # Job configuration
 # ---------------------------------------------------------------------------
 JOB_PAYLOAD = {
-    "name": "volve-nano-inference",
+    "name": "volve-activity-detection",
     "pipeline_type": "batch",
-    "pipeline_key": "nano-inference-pipeline",
+    "pipeline_key": "activity-detection",
     "inputs": {
         "worker.data": [
             {"file_id": "volve_nano_200.jsonl"}
@@ -103,12 +103,12 @@ def get_events(job_id: str, limit: int = 100) -> dict:
 # ---------------------------------------------------------------------------
 def main():
     print("=" * 60)
-    print(" Archetype AI Nano Inference Job")
+    print(" Archetype AI Activity Detection Job")
     print("=" * 60)
     print()
 
     # --- Step 1: Create job ------------------------------------------------
-    print("[1/3] Creating nano inference job...")
+    print("[1/3] Creating activity detection job...")
     job = create_job(JOB_PAYLOAD)
     job_id = job["id"]
 

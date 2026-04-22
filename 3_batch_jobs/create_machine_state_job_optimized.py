@@ -43,7 +43,7 @@ AUTH = {"Authorization": f"Bearer {API_KEY}"}
 JOB_PAYLOAD = {
     "name": "volve-drilling-optimized",
     "pipeline_type": "batch",
-    "pipeline_key": "machine-state-job-pipeline",
+    "pipeline_key": "machine-state-classification",
     "inputs": {
         "worker.inference": [
             {"file_id": "volve_inference.csv"}
@@ -63,14 +63,17 @@ JOB_PAYLOAD = {
                     "n_neighbors": 5,
                     "weights": "uniform",
                 },
-                "data_columns": [
-                    "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",
-                    "ROP", "RPM", "SPPA", "WOB",
-                ],
                 "flush_every_n_iteration": 1000,
                 "model_type": "omega_1_3_surface",
-                "reader_config": {"step_size": 1, "window_size": 128},
-                "timestamp_column": "DATE_TIME",
+                "reader_config": {
+                    "data_columns": [
+                        "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",
+                        "ROP", "RPM", "SPPA", "WOB",
+                    ],
+                    "step_size": 1,
+                    "timestamp_column": "DATE_TIME",
+                    "window_size": 128,
+                },
             },
         }
     },

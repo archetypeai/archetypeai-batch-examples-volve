@@ -54,11 +54,12 @@ PARAM_GRID = {
 # Fixed params
 FIXED_PARAMS = {
     "batch_size": 8,
-    "data_columns": ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"],
     "flush_every_n_iteration": 1000,
     "model_type": "omega_1_3_surface",
-    "timestamp_column": "DATE_TIME",
 }
+
+DATA_COLUMNS = ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
+TIMESTAMP_COLUMN = "DATE_TIME"
 
 INFERENCE_FILE = "volve_quick_test_200.csv"
 N_SHOT_FILES = [
@@ -78,7 +79,7 @@ def create_job(name: str, config: dict) -> dict:
     payload = {
         "name": name,
         "pipeline_type": "batch",
-        "pipeline_key": "machine-state-job-pipeline",
+        "pipeline_key": "machine-state-classification",
         "inputs": {
             "worker.inference": [{"file_id": INFERENCE_FILE}],
             "worker.n_shots": N_SHOT_FILES,
@@ -227,7 +228,12 @@ def main():
         params = dict(zip(keys, combo))
         config = {
             **FIXED_PARAMS,
-            "reader_config": {"step_size": 1, "window_size": params["window_size"]},
+            "reader_config": {
+                "data_columns": DATA_COLUMNS,
+                "step_size": 1,
+                "timestamp_column": TIMESTAMP_COLUMN,
+                "window_size": params["window_size"],
+            },
             "classifier_config": {
                 "n_neighbors": params["n_neighbors"],
                 "metric": params["metric"],
@@ -343,9 +349,9 @@ def main():
     print("    config:")
     print(f"      model_type: \"{FIXED_PARAMS['model_type']}\"")
     print(f"      batch_size: {FIXED_PARAMS['batch_size']}")
-    print(f"      timestamp_column: \"{FIXED_PARAMS['timestamp_column']}\"")
-    print(f"      data_columns: {json.dumps(FIXED_PARAMS['data_columns'])}")
     print("      reader_config:")
+    print(f"        data_columns: {json.dumps(DATA_COLUMNS)}")
+    print(f"        timestamp_column: \"{TIMESTAMP_COLUMN}\"")
     print(f"        window_size: {best['window_size']}")
     print("        step_size: 1")
     print("      classifier_config:")

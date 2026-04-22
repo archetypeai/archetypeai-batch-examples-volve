@@ -19,7 +19,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
   -d '{
     "name": "volve-drilling-classification",
     "pipeline_type": "batch",
-    "pipeline_key": "machine-state-job-pipeline",
+    "pipeline_key": "machine-state-classification",
     "inputs": {
       "worker.inference": [
         {"file_id": "volve_inference.csv"}
@@ -39,11 +39,14 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
             "n_neighbors": 5,
             "weights": "uniform"
           },
-          "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
           "flush_every_n_iteration": 150,
           "model_type": "omega_1_3_surface",
-          "reader_config": {"step_size": 1, "window_size": 1},
-          "timestamp_column": "DATE_TIME"
+          "reader_config": {
+            "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
+            "step_size": 1,
+            "timestamp_column": "DATE_TIME",
+            "window_size": 64
+          }
         }
       }
     }
@@ -56,8 +59,8 @@ Response:
   "id": "job_2w2ykhs5a49qwszbdqj1sr636n",
   "name": "volve-drilling-classification",
   "pipeline_type": "batch",
-  "pipeline_key": "machine-state-job-pipeline",
-  "pipeline_version": "0.1.29",
+  "pipeline_key": "machine-state-classification",
+  "pipeline_version": "1.1.0",
   "status": "PENDING",
   "created_at": "2026-04-08T21:51:56.283818Z",
   ...

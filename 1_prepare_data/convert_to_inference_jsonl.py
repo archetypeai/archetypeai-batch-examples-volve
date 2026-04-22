@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert drilling CSV to JSONL format for Nano Inference Pipeline.
+Convert drilling CSV to JSONL format for Activity Detection Pipeline.
 
 Usage:
     python convert_to_inference_jsonl.py data/volve_inference.csv data/volve_inference.jsonl --max-rows 100
@@ -39,7 +39,7 @@ FEATURE_COLUMNS = [
 
 
 def row_to_record(row: dict) -> dict:
-    """Convert a CSV row to a Nano Inference record."""
+    """Convert a CSV row to a Activity Detection record."""
     features_text = ", ".join(
         f"{col}: {row[col]}" for col in FEATURE_COLUMNS
     )

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Create and monitor a Nano Inference batch job on the Archetype AI platform.
+# Create and monitor a Activity Detection batch job on the Archetype AI platform.
 #
 # Usage:
-#   ./create_nano_inference_job.sh
+#   ./create_activity_detection_job.sh
 #
 # Requires: curl, python3 (for JSON parsing)
 
@@ -17,20 +17,20 @@ export $(grep -v '^#' "$PROJECT_DIR/.env" | xargs)
 BASE_URL="${ATAI_API_ENDPOINT}/v0.5"
 
 echo "============================================================"
-echo " Archetype AI Nano Inference Job (Shell)"
+echo " Archetype AI Activity Detection Job (Shell)"
 echo "============================================================"
 echo
 
 # --- Step 1: Create job ---------------------------------------------------
-echo "[1/3] Creating nano inference job..."
+echo "[1/3] Creating activity detection job..."
 
 JOB_RESPONSE=$(/usr/bin/curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "volve-nano-inference-sh",
+    "name": "volve-activity-detection-sh",
     "pipeline_type": "batch",
-    "pipeline_key": "nano-inference-pipeline",
+    "pipeline_key": "activity-detection",
     "inputs": {
       "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
     },

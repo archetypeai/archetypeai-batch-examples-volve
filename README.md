@@ -8,7 +8,7 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning (TB
 |------|--------|-------------|
 | Prepare data | `1_prepare_data/` | Convert WITSML XML → CSV, generate ACTC labels, split into n-shot/inference files |
 | Upload | `2_upload/` | Multipart presigned URL upload for large files (Python, shell, curl) |
-| Batch jobs | `3_batch_jobs/` | Machine State classification + Nano Inference text generation |
+| Batch jobs | `3_batch_jobs/` | Machine State classification + Activity Detection text generation |
 | Download | `4_download_outputs/` | Paginated output download via presigned S3 URLs |
 | Evaluate | `5_evaluate/` | Compare predictions against ACTC ground truth (accuracy, F1) |
 | Optimize | `3_batch_jobs/optimize_config.py` | Grid search over pipeline hyperparameters |
@@ -16,7 +16,7 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning (TB
 
 **Two pipelines:**
 - **Machine State** — classifies sensor windows as "drilling" vs "not_drilling" using n-shot examples + KNN (67% accuracy on quick test, full run pending)
-- **Nano Inference** — generates natural language descriptions of rig state from sensor readings
+- **Activity Detection** — generates natural language descriptions of rig state from sensor readings
 
 **Quick start:** All data files are pre-built in `data/` via Git LFS. Skip to [step 4 (Upload)](#4-upload-files) to get started immediately.
 
@@ -149,9 +149,9 @@ Notes:
 - The 4,000 n-shot samples are excluded from inference and quick test files
 - Random seed is fixed (42) for reproducibility
 
-### Step 3: Convert CSV to JSONL (for Nano Inference)
+### Step 3: Convert CSV to JSONL (for Activity Detection)
 
-The Nano Inference pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
+The Activity Detection pipeline requires JSONL input. Convert CSV sensor data to JSONL with drilling analyst prompts:
 
 ```bash
 # Convert 200 rows for a quick test (recommended starting point)
@@ -166,7 +166,7 @@ Each output line has `system` (with sensor definitions), `instruction`, and `pro
 {"system": "You are a drilling operations analyst...", "instruction": "Describe the current rig state...", "prompt": "BPOS: 10.02, DBTM: 259.92, ..."}
 ```
 
-> **Note:** Use `--max-rows` to limit the output size. Nano Inference generates up to 256 tokens per row, so large files (millions of rows) will take a very long time or timeout. Start with 200-1000 rows and scale up as needed. Omitting `--max-rows` converts all 7.4M rows, which is not recommended for Nano Inference.
+> **Note:** Use `--max-rows` to limit the output size. Activity Detection generates up to 256 tokens per row, so large files (millions of rows) will take a very long time or timeout. Start with 200-1000 rows and scale up as needed. Omitting `--max-rows` converts all 7.4M rows, which is not recommended for Activity Detection.
 
 ### Workflow
 
@@ -175,7 +175,7 @@ Each output line has `system` (with sensor definitions), `instruction`, and `pro
 2. Upload inference data (volve_inference.csv)
 3. Run batch job:
    a. Machine State — classify drilling vs. not-drilling (CSV input)
-   b. Nano Inference — describe rig state in natural language (JSONL input)
+   b. Activity Detection — describe rig state in natural language (JSONL input)
 4. Download outputs and evaluate predictions
 ```
 
@@ -204,7 +204,7 @@ python 2_upload/upload_multipart.py data/volve_inference.csv
 # Quick test for Machine State pipeline (200-row sample)
 python 2_upload/upload_multipart.py data/volve_quick_test_200.csv
 
-# Quick test for Nano Inference pipeline (200 prompts)
+# Quick test for Activity Detection pipeline (200 prompts)
 python 2_upload/upload_multipart.py data/volve_nano_200.jsonl
 ```
 
@@ -221,7 +221,7 @@ chmod +x 2_upload/upload_multipart.sh
 # Quick test for Machine State pipeline (200-row sample)
 ./2_upload/upload_multipart.sh data/volve_quick_test_200.csv
 
-# Quick test for Nano Inference pipeline (200 prompts)
+# Quick test for Activity Detection pipeline (200 prompts)
 ./2_upload/upload_multipart.sh data/volve_nano_200.jsonl
 ```
 
@@ -240,7 +240,7 @@ for FILE in volve_drilling.csv volve_not_drilling.csv volve_inference.csv volve_
   echo
 done
 
-# JSONL file for Nano Inference (small enough for simple upload)
+# JSONL file for Activity Detection (small enough for simple upload)
 curl -s -X POST "$BASE_URL/files" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -F "file=@data/volve_nano_200.jsonl;type=text/plain"
@@ -254,7 +254,7 @@ Create and monitor batch jobs via `POST /v0.5/batch/jobs`. Two pipeline types ar
 
 Classifies time-series sensor data using n-shot examples. Uses the Newton foundation model to vectorize sensor windows, then a KNN classifier to predict machine state.
 
-**Pipeline key:** `machine-state-job-pipeline`
+**Pipeline key:** `machine-state-classification`
 
 **Available model types:**
 - `omega_1_3_surface` — surface sensor monitoring (9 channels)
@@ -271,18 +271,18 @@ worker:
   config:
     model_type: "omega_1_3_surface"
     batch_size: 8
-    timestamp_column: "DATE_TIME"
-    data_columns:
-      - "BPOS"
-      - "DBTM"
-      - "FLWI"
-      - "HDTH"
-      - "HKLD"
-      - "ROP"
-      - "RPM"
-      - "SPPA"
-      - "WOB"
     reader_config:
+      data_columns:
+        - "BPOS"
+        - "DBTM"
+        - "FLWI"
+        - "HDTH"
+        - "HKLD"
+        - "ROP"
+        - "RPM"
+        - "SPPA"
+        - "WOB"
+      timestamp_column: "DATE_TIME"
       window_size: 64
       step_size: 1
     classifier_config:
@@ -310,7 +310,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
   -d '{
     "name": "volve-quick-test",
     "pipeline_type": "batch",
-    "pipeline_key": "machine-state-job-pipeline",
+    "pipeline_key": "machine-state-classification",
     "inputs": {
       "worker.inference": [{"file_id": "volve_quick_test_200.csv"}],
       "worker.n_shots": [
@@ -324,11 +324,14 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
         "config": {
           "batch_size": 8,
           "classifier_config": {"metric": "euclidean", "n_neighbors": 5, "weights": "uniform"},
-          "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
           "flush_every_n_iteration": 1000,
           "model_type": "omega_1_3_surface",
-          "reader_config": {"step_size": 1, "window_size": 64},
-          "timestamp_column": "DATE_TIME"
+          "reader_config": {
+            "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
+            "step_size": 1,
+            "timestamp_column": "DATE_TIME",
+            "window_size": 64
+          }
         }
       }
     }
@@ -358,7 +361,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
   -d '{
     "name": "volve-drilling-classification",
     "pipeline_type": "batch",
-    "pipeline_key": "machine-state-job-pipeline",
+    "pipeline_key": "machine-state-classification",
     "inputs": {
       "worker.inference": [{"file_id": "volve_inference.csv"}],
       "worker.n_shots": [
@@ -372,11 +375,11 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
 
 See also: [3_batch_jobs/create_machine_state_job_curl.md](3_batch_jobs/create_machine_state_job_curl.md) for the full curl walkthrough.
 
-### Pipeline 2: Nano Inference Pipeline
+### Pipeline 2: Activity Detection
 
 Text generation inference using Newton's language capabilities on input data files.
 
-**Pipeline key:** `nano-inference-pipeline`
+**Pipeline key:** `activity-detection`
 
 **Input ports:**
 - `worker.data` — JSONL files (not raw CSV)
@@ -393,7 +396,7 @@ Text generation inference using Newton's language capabilities on input data fil
 | `prompt` | string | No | User prompt / input text |
 | `inputs` | array | No | Multimodal inputs (images, video) |
 
-At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-3-convert-csv-to-jsonl-for-nano-inference).
+At least one text field should be non-empty. See [input format reference](https://github.com/archetypeai/atai_core/tree/main/services/jos_service/nano_inference#input-format). To convert CSV data to JSONL, see [step 3](#step-3-convert-csv-to-jsonl-for-activity-detection).
 
 **Prerequisites:** Upload `volve_nano_200.jsonl` first (see [step 4](#4-upload-files)).
 
@@ -417,13 +420,13 @@ Uses `volve_nano_200.jsonl` — completes in a few minutes:
 
 **Python:**
 ```bash
-python 3_batch_jobs/create_nano_inference_job.py
+python 3_batch_jobs/create_activity_detection_job.py
 ```
 
 **Shell:**
 ```bash
-chmod +x 3_batch_jobs/create_nano_inference_job.sh
-./3_batch_jobs/create_nano_inference_job.sh
+chmod +x 3_batch_jobs/create_activity_detection_job.sh
+./3_batch_jobs/create_activity_detection_job.sh
 ```
 
 **curl:**
@@ -432,9 +435,9 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "volve-nano-inference",
+    "name": "volve-activity-detection",
     "pipeline_type": "batch",
-    "pipeline_key": "nano-inference-pipeline",
+    "pipeline_key": "activity-detection",
     "inputs": {
       "worker.data": [{"file_id": "volve_nano_200.jsonl"}]
     },
@@ -456,7 +459,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
   }'
 ```
 
-See also: [3_batch_jobs/create_nano_inference_job_curl.md](3_batch_jobs/create_nano_inference_job_curl.md) for the full curl walkthrough.
+See also: [3_batch_jobs/create_activity_detection_job_curl.md](3_batch_jobs/create_activity_detection_job_curl.md) for the full curl walkthrough.
 
 **Important notes:**
 - Raw CSV input will result in `"error": "parse error"` for every line — must use JSONL format
@@ -477,7 +480,7 @@ curl -s "$BASE_URL/batch/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_AP
 curl -s "$BASE_URL/batch/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
 
-See also: [3_batch_jobs/create_machine_state_job.py](3_batch_jobs/create_machine_state_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_nano_inference_job.py](3_batch_jobs/create_nano_inference_job.py)
+See also: [3_batch_jobs/create_machine_state_job.py](3_batch_jobs/create_machine_state_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_activity_detection_job.py](3_batch_jobs/create_activity_detection_job.py)
 
 ### Downloading Outputs
 
@@ -550,9 +553,9 @@ python 5_evaluate/evaluate_results.py <full_run_job_id>
 
 This downloads all output chunks (may take several minutes for large jobs), matches predictions to ACTC ground truth labels via timestamps, and produces a confusion matrix, accuracy, precision, recall, and F1 score. Full run results on 7.3M rows will be more representative than the 200-row quick test.
 
-### Nano Inference Pipeline
+### Activity Detection
 
-Nano Inference outputs are natural language descriptions, not classification labels, so there's no automated evaluation. Download the outputs and review manually:
+Activity Detection outputs are natural language descriptions, not classification labels, so there's no automated evaluation. Download the outputs and review manually:
 
 ```bash
 python 4_download_outputs/download_outputs.py <nano_job_id> outputs/
