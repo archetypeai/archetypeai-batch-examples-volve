@@ -24,7 +24,7 @@ echo
 # --- Step 1: Create job ---------------------------------------------------
 echo "[1/3] Creating batch job..."
 
-JOB_RESPONSE=$(/usr/bin/curl -s -X POST "$BASE_URL/jos/jobs" \
+JOB_RESPONSE=$(/usr/bin/curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -74,7 +74,7 @@ POLL_INTERVAL=5
 PREV_STATUS=""
 
 while true; do
-    STATUS_RESPONSE=$(/usr/bin/curl -s "$BASE_URL/jos/jobs/$JOB_ID" \
+    STATUS_RESPONSE=$(/usr/bin/curl -s "$BASE_URL/batch/jobs/$JOB_ID" \
       -H "Authorization: Bearer $ATAI_API_KEY")
 
     STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
@@ -96,7 +96,7 @@ echo
 # --- Step 3: Show events ---------------------------------------------------
 echo "[3/3] Job events:"
 
-EVENTS=$(/usr/bin/curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" \
+EVENTS=$(/usr/bin/curl -s "$BASE_URL/batch/jobs/$JOB_ID/events" \
   -H "Authorization: Bearer $ATAI_API_KEY")
 
 echo "$EVENTS" | python3 -c "

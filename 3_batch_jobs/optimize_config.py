@@ -91,7 +91,7 @@ def create_job(name: str, config: dict) -> dict:
         },
     }
     resp = requests.post(
-        f"{BASE_URL}/jos/jobs",
+        f"{BASE_URL}/batch/jobs",
         headers={**AUTH, "Content-Type": "application/json"},
         json=payload,
     )
@@ -101,7 +101,7 @@ def create_job(name: str, config: dict) -> dict:
 
 def wait_for_job(job_id: str, poll_interval: int = 10) -> str:
     while True:
-        resp = requests.get(f"{BASE_URL}/jos/jobs/{job_id}", headers=AUTH)
+        resp = requests.get(f"{BASE_URL}/batch/jobs/{job_id}", headers=AUTH)
         resp.raise_for_status()
         status = resp.json()["status"]
         if status in TERMINAL_STATUSES:
@@ -114,7 +114,7 @@ def get_predictions(job_id: str) -> dict:
     offset = 0
     while True:
         resp = requests.get(
-            f"{BASE_URL}/jos/jobs/{job_id}/outputs",
+            f"{BASE_URL}/batch/jobs/{job_id}/outputs",
             headers=AUTH,
             params={"limit": 50, "offset": offset},
         )

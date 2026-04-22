@@ -6,7 +6,7 @@ Manual curl commands for creating and monitoring Nano Inference batch jobs.
 
 ```bash
 export ATAI_API_KEY="your-api-key"
-export ATAI_API_ENDPOINT="https://api.dev.u1.archetypeai.app"
+export ATAI_API_ENDPOINT="https://api.u1.archetypeai.app"
 export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
 ```
 
@@ -22,7 +22,7 @@ Use `1_prepare_data/convert_to_inference_jsonl.py` to convert CSV to JSONL.
 ## Step 1: Create a Nano Inference Job
 
 ```bash
-curl -s -X POST "$BASE_URL/jos/jobs" \
+curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -68,14 +68,14 @@ Response:
 ```bash
 JOB_ID="job_..."
 
-curl -s "$BASE_URL/jos/jobs/$JOB_ID" \
+curl -s "$BASE_URL/batch/jobs/$JOB_ID" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 
 ## Step 3: View Job Events
 
 ```bash
-curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" \
+curl -s "$BASE_URL/batch/jobs/$JOB_ID/events" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 

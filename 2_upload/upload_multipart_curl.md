@@ -6,7 +6,7 @@ Manual curl commands for the 3-step presigned URL upload flow.
 
 ```bash
 export ATAI_API_KEY="your-api-key"
-export ATAI_API_ENDPOINT="https://api.dev.u1.archetypeai.app"
+export ATAI_API_ENDPOINT="https://api.u1.archetypeai.app"
 export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
 ```
 

@@ -9,9 +9,9 @@ Usage:
     python create_nano_inference_job.py
 
 Flow:
-    1. POST /v0.5/jos/jobs          → create batch job
-    2. GET  /v0.5/jos/jobs/{id}     → poll status
-    3. GET  /v0.5/jos/jobs/{id}/events → view logs
+    1. POST /v0.5/batch/jobs          → create batch job
+    2. GET  /v0.5/batch/jobs/{id}     → poll status
+    3. GET  /v0.5/batch/jobs/{id}/events → view logs
 """
 
 import json
@@ -74,7 +74,7 @@ TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
 # ---------------------------------------------------------------------------
 def create_job(payload: dict) -> dict:
     resp = requests.post(
-        f"{BASE_URL}/jos/jobs",
+        f"{BASE_URL}/batch/jobs",
         headers={**AUTH, "Content-Type": "application/json"},
         json=payload,
     )
@@ -83,14 +83,14 @@ def create_job(payload: dict) -> dict:
 
 
 def get_job(job_id: str) -> dict:
-    resp = requests.get(f"{BASE_URL}/jos/jobs/{job_id}", headers=AUTH)
+    resp = requests.get(f"{BASE_URL}/batch/jobs/{job_id}", headers=AUTH)
     resp.raise_for_status()
     return resp.json()
 
 
 def get_events(job_id: str, limit: int = 100) -> dict:
     resp = requests.get(
-        f"{BASE_URL}/jos/jobs/{job_id}/events",
+        f"{BASE_URL}/batch/jobs/{job_id}/events",
         headers=AUTH,
         params={"limit": limit},
     )

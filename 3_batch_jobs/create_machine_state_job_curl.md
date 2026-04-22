@@ -6,14 +6,14 @@ Manual curl commands for creating and monitoring Machine State batch jobs.
 
 ```bash
 export ATAI_API_KEY="your-api-key"
-export ATAI_API_ENDPOINT="https://api.dev.u1.archetypeai.app"
+export ATAI_API_ENDPOINT="https://api.u1.archetypeai.app"
 export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
 ```
 
 ## Step 1: Create a Batch Job
 
 ```bash
-curl -s -X POST "$BASE_URL/jos/jobs" \
+curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -72,7 +72,7 @@ JOB_ID="job_2w2ykhs5a49qwszbdqj1sr636n"
 ## Step 2: Check Job Status
 
 ```bash
-curl -s "$BASE_URL/jos/jobs/$JOB_ID" \
+curl -s "$BASE_URL/batch/jobs/$JOB_ID" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 
@@ -81,7 +81,7 @@ Status values: `PENDING` → `RUNNING` → `COMPLETED` / `FAILED` / `CANCELLED`
 ## Step 3: View Job Events
 
 ```bash
-curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" \
+curl -s "$BASE_URL/batch/jobs/$JOB_ID/events" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 
@@ -102,7 +102,7 @@ Response:
 ## List All Jobs
 
 ```bash
-curl -s "$BASE_URL/jos/jobs?limit=10&offset=0" \
+curl -s "$BASE_URL/batch/jobs?limit=10&offset=0" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 
@@ -110,7 +110,7 @@ curl -s "$BASE_URL/jos/jobs?limit=10&offset=0" \
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v0.5/jos/jobs` | POST | Create a batch job |
-| `/v0.5/jos/jobs` | GET | List all jobs |
-| `/v0.5/jos/jobs/{job_id}` | GET | Get job status |
-| `/v0.5/jos/jobs/{job_id}/events` | GET | Get job events/logs |
+| `/v0.5/batch/jobs` | POST | Create a batch job |
+| `/v0.5/batch/jobs` | GET | List all jobs |
+| `/v0.5/batch/jobs/{job_id}` | GET | Get job status |
+| `/v0.5/batch/jobs/{job_id}/events` | GET | Get job events/logs |

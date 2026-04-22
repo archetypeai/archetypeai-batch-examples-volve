@@ -30,7 +30,7 @@ echo
 
 # Step 1: Get total count
 echo "[1/2] Fetching output list..."
-FIRST_PAGE=$(/usr/bin/curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=1&offset=0" \
+FIRST_PAGE=$(/usr/bin/curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=1&offset=0" \
   -H "Authorization: Bearer $ATAI_API_KEY")
 TOTAL=$(echo "$FIRST_PAGE" | python3 -c "import sys,json; print(json.load(sys.stdin)['total'])")
 echo "  Total: $TOTAL files"
@@ -45,7 +45,7 @@ DOWNLOADED=0
 
 while [ "$OFFSET" -lt "$TOTAL" ]; do
     # Fetch page of outputs
-    PAGE=$(/usr/bin/curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=$LIMIT&offset=$OFFSET" \
+    PAGE=$(/usr/bin/curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=$LIMIT&offset=$OFFSET" \
       -H "Authorization: Bearer $ATAI_API_KEY")
 
     # Extract URLs and filenames

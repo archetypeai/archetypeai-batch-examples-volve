@@ -248,7 +248,7 @@ curl -s -X POST "$BASE_URL/files" \
 
 ## 5. Batch Jobs
 
-Create and monitor batch jobs via `POST /v0.5/jos/jobs`. Two pipeline types are available:
+Create and monitor batch jobs via `POST /v0.5/batch/jobs`. Two pipeline types are available:
 
 ### Pipeline 1: Machine State Job Pipeline
 
@@ -304,7 +304,7 @@ worker:
 Uses `volve_quick_test_200.csv` with the same n-shot files — fast way to verify the pipeline works:
 
 ```bash
-curl -s -X POST "$BASE_URL/jos/jobs" \
+curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -352,7 +352,7 @@ chmod +x 3_batch_jobs/create_machine_state_job.sh
 
 **curl:**
 ```bash
-curl -s -X POST "$BASE_URL/jos/jobs" \
+curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -428,7 +428,7 @@ chmod +x 3_batch_jobs/create_nano_inference_job.sh
 
 **curl:**
 ```bash
-curl -s -X POST "$BASE_URL/jos/jobs" \
+curl -s -X POST "$BASE_URL/batch/jobs" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -468,20 +468,20 @@ See also: [3_batch_jobs/create_nano_inference_job_curl.md](3_batch_jobs/create_n
 
 ```bash
 # Check status (PENDING → RUNNING → COMPLETED / FAILED / CANCELLED)
-curl -s "$BASE_URL/jos/jobs/$JOB_ID" -H "Authorization: Bearer $ATAI_API_KEY"
+curl -s "$BASE_URL/batch/jobs/$JOB_ID" -H "Authorization: Bearer $ATAI_API_KEY"
 
 # View events/logs
-curl -s "$BASE_URL/jos/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_KEY"
+curl -s "$BASE_URL/batch/jobs/$JOB_ID/events" -H "Authorization: Bearer $ATAI_API_KEY"
 
 # List all jobs
-curl -s "$BASE_URL/jos/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
+curl -s "$BASE_URL/batch/jobs" -H "Authorization: Bearer $ATAI_API_KEY"
 ```
 
 See also: [3_batch_jobs/create_machine_state_job.py](3_batch_jobs/create_machine_state_job.py), [3_batch_jobs/create_machine_state_job.sh](3_batch_jobs/create_machine_state_job.sh), [3_batch_jobs/create_nano_inference_job.py](3_batch_jobs/create_nano_inference_job.py)
 
 ### Downloading Outputs
 
-Job outputs are available via `GET /v0.5/jos/jobs/{job_id}/outputs` which returns paginated output metadata with presigned S3 download URLs (1-hour expiry, no auth needed).
+Job outputs are available via `GET /v0.5/batch/jobs/{job_id}/outputs` which returns paginated output metadata with presigned S3 download URLs (1-hour expiry, no auth needed).
 
 ```bash
 python 4_download_outputs/download_outputs.py <job_id> outputs/
@@ -651,11 +651,11 @@ The drilling sensor data used in these examples is from the **Equinor Volve Data
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v0.5/jos/jobs` | POST | Create a batch job |
-| `/v0.5/jos/jobs` | GET | List all jobs |
-| `/v0.5/jos/jobs/{job_id}` | GET | Get job status |
-| `/v0.5/jos/jobs/{job_id}/events` | GET | Get job events/logs |
-| `/v0.5/jos/jobs/{job_id}/outputs` | GET | List output artifacts (paginated, presigned URLs) |
+| `/v0.5/batch/jobs` | POST | Create a batch job |
+| `/v0.5/batch/jobs` | GET | List all jobs |
+| `/v0.5/batch/jobs/{job_id}` | GET | Get job status |
+| `/v0.5/batch/jobs/{job_id}/events` | GET | Get job events/logs |
+| `/v0.5/batch/jobs/{job_id}/outputs` | GET | List output artifacts (paginated, presigned URLs) |
 
 ## License
 

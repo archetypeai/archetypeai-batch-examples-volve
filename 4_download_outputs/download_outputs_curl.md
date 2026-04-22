@@ -6,7 +6,7 @@ Manual curl commands for downloading batch job output artifacts.
 
 ```bash
 export ATAI_API_KEY="your-api-key"
-export ATAI_API_ENDPOINT="https://api.dev.u1.archetypeai.app"
+export ATAI_API_ENDPOINT="https://api.u1.archetypeai.app"
 export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
 export JOB_ID="job_6pgect4qqc8h0sd6v3rva23y8g"
 ```
@@ -15,7 +15,7 @@ export JOB_ID="job_6pgect4qqc8h0sd6v3rva23y8g"
 
 ```bash
 # Get first page of outputs (50 per page)
-curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=50&offset=0" \
+curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=50&offset=0" \
   -H "Authorization: Bearer $ATAI_API_KEY" | python3 -m json.tool
 ```
 
@@ -52,7 +52,7 @@ Extract the presigned URL and download directly:
 
 ```bash
 # Get the URL for the first output
-URL=$(curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=1&offset=0" \
+URL=$(curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=1&offset=0" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['outputs'][0]['data']['ref'])")
 
@@ -72,7 +72,7 @@ head -5 output_part.csv
 ```bash
 mkdir -p outputs/$JOB_ID
 
-TOTAL=$(curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=1" \
+TOTAL=$(curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=1" \
   -H "Authorization: Bearer $ATAI_API_KEY" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['total'])")
 
@@ -83,7 +83,7 @@ LIMIT=50
 
 while [ "$OFFSET" -lt "$TOTAL" ]; do
   # Fetch page
-  PAGE=$(curl -s "$BASE_URL/jos/jobs/$JOB_ID/outputs?limit=$LIMIT&offset=$OFFSET" \
+  PAGE=$(curl -s "$BASE_URL/batch/jobs/$JOB_ID/outputs?limit=$LIMIT&offset=$OFFSET" \
     -H "Authorization: Bearer $ATAI_API_KEY")
 
   # Download each file in the page
@@ -125,7 +125,7 @@ Each output CSV contains:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v0.5/jos/jobs/{job_id}/outputs` | GET | List output artifacts (paginated) |
+| `/v0.5/batch/jobs/{job_id}/outputs` | GET | List output artifacts (paginated) |
 | `{presigned_url}` | GET | Download artifact (no auth, 1hr expiry) |
 
 ## Notes

@@ -46,7 +46,7 @@ def get_outputs(job_id: str) -> list:
     limit = 50
     while True:
         resp = requests.get(
-            f"{BASE_URL}/jos/jobs/{job_id}/outputs",
+            f"{BASE_URL}/batch/jobs/{job_id}/outputs",
             headers=AUTH,
             params={"limit": limit, "offset": offset},
         )
