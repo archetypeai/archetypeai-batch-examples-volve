@@ -591,7 +591,7 @@ This searches over:
 | `metric` | euclidean, cosine, manhattan | Distance metric |
 | `weights` | uniform, distance | KNN weight function |
 
-**96 combinations** — each takes ~30 seconds (most is model loading), so the full search completes in ~48 minutes.
+**96 combinations** — each takes ~70 seconds on prod, so the full search completes in ~2 hours.
 
 For each combination, the script:
 1. Creates a batch job with the config
@@ -605,6 +605,8 @@ Output:
 - Results saved to `data/optimization_results.json`
 - Supports resume — re-run after interruption and it skips completed combinations
 
+> **Choose F1, not the printed "Best Config".** The script sorts by accuracy, which is misleading on this quick-test dataset (~76% not-drilling, so any model biased toward not-drilling scores high on accuracy but misses most drilling events). On the 200-row test the accuracy winner (w16/k3) scores F1 0.300 while the F1 winner (w128/k5) scores F1 0.400 — and the gap widens at full scale. Sort `data/optimization_results.json` by F1 when picking a config.
+
 Once you find the best config, use it for the full run on `volve_inference.csv`:
 
 ```bash
@@ -615,23 +617,26 @@ python 3_batch_jobs/create_machine_state_job.py
 python 3_batch_jobs/create_machine_state_job_optimized.py
 ```
 
-### Full Run Results (7.3M rows)
+### Full Run Results (7.3M rows, prod)
 
-| Metric | Default (window=64, k=5) | Optimized (window=128, k=5) |
-|--------|--------------------------|----------------------------|
-| **Accuracy** | 90.95% | **91.00%** |
-| **Precision** | **79.71%** | 78.87% |
-| **Recall** | 84.37% | **86.18%** |
-| **F1 Score** | 81.97% | **82.36%** |
-| Drilling predictions | 25.8% | 26.6% |
-| Not-drilling predictions | 74.2% | 73.4% |
+| Metric | Default (window=64, k=5) | Optimized (window=128, k=5) | Δ |
+|--------|--------------------------|----------------------------|---|
+| **Accuracy** | 90.95% | **91.00%** | +0.05pp |
+| **Precision** | **79.71%** | 78.87% | −0.84pp |
+| **Recall** | 84.37% | **86.18%** | +1.81pp |
+| **F1 Score** | 81.97% | **82.36%** | +0.39pp |
+| Drilling predictions | 25.8% | 26.6% | +0.8pp |
+| Runtime (prod) | 101 min | 101 min | — |
 
-Both configs achieve ~91% accuracy and ~82% F1 on the full dataset. The optimized config (window=128) has slightly better recall and F1, catching more actual drilling events.
+**Confusion matrix deltas** (optimized vs default): +31,914 more actual drilling events caught (TP), −31,978 fewer missed (FN), at the cost of +28,470 more false alarms (FP).
 
 **Key findings:**
-- The `omega_1_3_surface` model works very well on real Volve drilling data (91% accuracy)
-- Quick test results (200 rows) underestimate full-run performance — the model benefits from more context at scale
-- The gap between default and optimized configs is small at full scale (~0.4% F1), unlike the quick test where it appeared larger
+- The `omega_1_3_surface` model works very well on real Volve drilling data (91% accuracy on 7.3M rows).
+- The two configs are effectively equivalent in aggregate — the real tradeoff is **precision vs recall**, not "better vs worse":
+  - **Default (w=64)** wins on precision — use when false alarms are costly (alerts, interventions).
+  - **Optimized (w=128)** wins on recall and F1 — use when missed drilling is costly (billing, safety).
+- Both configs significantly outperform the naive baseline (76% accuracy from always predicting not-drilling).
+- Quick-test (200-row) accuracy ranking is misleading due to class imbalance — sort `data/optimization_results.json` by F1 when picking a config.
 - Both configs significantly outperform random chance (76% accuracy for always predicting not-drilling)
 
 ## 8. Fine-Tuning
