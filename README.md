@@ -635,7 +635,6 @@ python 3_batch_jobs/create_machine_state_job_optimized.py
 - The two configs are effectively equivalent in aggregate — the real tradeoff is **precision vs recall**, not "better vs worse":
   - **Default (w=64)** wins on precision — use when false alarms are costly (alerts, interventions).
   - **Optimized (w=128)** wins on recall and F1 — use when missed drilling is costly (billing, safety).
-- Both configs significantly outperform the naive baseline (76% accuracy from always predicting not-drilling).
 - Quick-test (200-row) accuracy ranking is misleading due to class imbalance — sort `data/optimization_results.json` by F1 when picking a config.
 - Both configs significantly outperform random chance (76% accuracy for always predicting not-drilling)
 
