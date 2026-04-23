@@ -44,10 +44,11 @@ pip install requests
 deactivate
 ```
 
-If you plan to run the curl examples below, load the same `.env` into your shell so `$ATAI_API_KEY`, `$ATAI_API_ENDPOINT`, and `$BASE_URL` are set:
+If you plan to run the curl examples below, export these into your shell:
 
 ```bash
-set -a && . ./.env && set +a
+export ATAI_API_KEY="your-api-key"
+export ATAI_API_ENDPOINT="https://api.u1.archetypeai.app"
 export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
 ```
 
