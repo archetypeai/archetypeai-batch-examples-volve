@@ -636,7 +636,7 @@ Both configs achieve ~91% accuracy and ~82% F1 on the full dataset. The optimize
 
 ## 8. Fine-Tuning
 
-TBD — Fine-tuning endpoint (`/v0.5/internal/experiment/runner/jobs`) is not yet available on dev. See `1_prepare_data/convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
+TBD — Fine-tuning endpoint is not yet available. See `1_prepare_data/convert_to_jsonl.py` for converting CSV training data to the required JSONL format.
 
 ## Data Attribution
 
