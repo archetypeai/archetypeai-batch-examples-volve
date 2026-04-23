@@ -44,6 +44,13 @@ pip install requests
 deactivate
 ```
 
+If you plan to run the curl examples below, load the same `.env` into your shell so `$ATAI_API_KEY`, `$ATAI_API_ENDPOINT`, and `$BASE_URL` are set:
+
+```bash
+set -a && . ./.env && set +a
+export BASE_URL="$ATAI_API_ENDPOINT/v0.5"
+```
+
 ## 2. Dataset
 
 These examples use the [Equinor Volve Data Village](https://www.equinor.com/energy/volve-data-sharing) — real-time drilling sensor data from the Volve oil field in the North Sea (2007-2016). The dataset is provided by Equinor under a [modified CC BY 4.0 license](https://www.equinor.com/energy/volve-data-sharing) (free for commercial use, must not be resold, must attribute Equinor).
