@@ -33,9 +33,13 @@ The previous prep used `random.sample(drilling_rows, 2000)` / `random.sample(not
 | Optimizer eval target | 200-row random `volve_quick_test_200.csv` | New `volve_opt_slice.csv` — 4,000-row class-balanced slice (2,000 drilling + 2,000 not_drilling, both time-contiguous) |
 | Preflight | 10 PASS / 2 WARN / 2 FAIL (`timestamp_monotonic` on both shot files) | **10 PASS / 4 WARN / 0 FAIL** |
 
-### Run-detection caveat
+### Run detection
 
-`volve_raw.csv` is sorted globally by `DATE_TIME` across 14 wells whose recording periods overlap. The new prep splits class runs on label change OR delta > 60s OR delta < 1s (the median delta is 5s; p99.9 is 42s; 60s ≈ 12× median). This catches well-boundary gaps but cannot detect the ~61K rows (0.85%) where two wells happened to be recording at the same instant. A future improvement would carry a `well_id` column through `volve_to_csv.py` so runs can be defined strictly per-well.
+`volve_raw.csv` is sorted globally by `DATE_TIME` across 14 wells whose recording periods overlap. The new prep splits class runs on:
+- label change
+- delta > 60s (well-boundary gap; median delta is 5s, p99.9 is 42s)
+- delta < 1s (timestamp collision between wells)
+- **`well_id` change** — `volve_to_csv.py` now stamps each row with its source well directory name, and `generate_labels.py` uses that as an additional split criterion so runs are strictly per-well. If you're running with an older `volve_raw.csv` that pre-dates this change (no `well_id` column), the script falls back to delta-based splitting only and prints a warning; re-run `volve_to_csv.py` to enable strict per-well splits.
 
 The 4 preflight WARNs after this change are:
 - `timestamp` "large gap" on each shot file (median 4-5s, max 32-45s): real data — brief recording pauses for bit changes / operator data entry. Well under the 60s splitting threshold.

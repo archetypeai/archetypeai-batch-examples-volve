@@ -38,14 +38,18 @@ ACTC label mapping:
     not_drilling:  ACTC in {3, 4, 8, 9}  (Off Bottom, In Slips, Trip In Slips, Shut In)
     skipped:       ACTC in {-1, 0, 5, 19, 20, empty} (ambiguous/unknown)
 
-Run-detection caveat:
+Run detection:
     volve_raw.csv is sorted globally by DATE_TIME across 14 wells whose
-    recording periods overlap. We split runs on label change OR delta>60s
-    OR delta<1 (the median delta is 5s; p99.9 is 42s; 60s is ~12x median).
-    This catches well-boundary gaps but cannot detect cases where two wells
-    were recording at the same instant (~61K such rows out of 7.3M; 0.85%).
-    A future improvement would carry a well_id column through volve_to_csv.py
-    so runs can be defined strictly per-well.
+    recording periods overlap. We split class runs on:
+      - label change
+      - delta > 60s (well-boundary gap; median delta is 5s, p99.9 is 42s)
+      - delta < 1s (timestamp collision between wells)
+      - well_id change (if the volve_raw.csv has a well_id column)
+    well_id is emitted by the newer volve_to_csv.py. If volve_raw.csv was
+    produced by an older volve_to_csv.py without that column, we fall back
+    to delta-based splitting only (which still catches well-boundary gaps
+    but cannot detect the ~61K rows / 0.85% where two wells recorded at the
+    same instant). Re-run volve_to_csv.py to enable strict per-well splits.
 """
 
 import csv
@@ -62,6 +66,7 @@ NOT_DRILLING_CODES = {"3", "3.0", "4", "4.0", "8", "8.0", "9", "9.0"}
 
 SENSOR_COLUMNS = ["DATE_TIME", "BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
 LABELED_COLUMNS = SENSOR_COLUMNS + ["label"]
+WELL_ID_COL = "well_id"  # optional; emitted by the newer volve_to_csv.py
 
 N_SHOT_PER_CLASS = 2000
 QUICK_TEST_SIZE = 200
@@ -91,16 +96,20 @@ def label_for_actc(actc: str) -> str:
     return ""  # skipped
 
 
-def find_class_runs(rows: list) -> dict:
+def find_class_runs(rows: list, use_well_id: bool) -> dict:
     """Return {class: [(start_idx, end_idx, length), ...]} sorted by length desc.
 
-    Splits on: label change, delta > MAX_DELTA, or delta < MIN_DELTA.
+    Splits on: label change, delta > MAX_DELTA, delta < MIN_DELTA, or (if
+    use_well_id) a change in well_id. The well_id split is the strongest
+    safeguard: without it the global-by-DATE_TIME sort can silently interleave
+    rows from two wells whose recording periods overlap.
     """
     runs = {c: [] for c in CLASS_NAMES}
     if not rows:
         return runs
 
     current_label = rows[0]["label"]
+    current_well = rows[0].get(WELL_ID_COL, "") if use_well_id else None
     current_start = 0
     prev_ts = int(rows[0]["DATE_TIME"])
     n = len(rows)
@@ -108,12 +117,20 @@ def find_class_runs(rows: list) -> dict:
     for i in range(1, n):
         ts = int(rows[i]["DATE_TIME"])
         label = rows[i]["label"]
+        well = rows[i].get(WELL_ID_COL, "") if use_well_id else None
         delta = ts - prev_ts
-        if label != current_label or delta > MAX_DELTA or delta < MIN_DELTA:
+        split = (
+            label != current_label
+            or delta > MAX_DELTA
+            or delta < MIN_DELTA
+            or (use_well_id and well != current_well)
+        )
+        if split:
             length = i - current_start
             if current_label in runs:
                 runs[current_label].append((current_start, i, length))
             current_label = label
+            current_well = well
             current_start = i
         prev_ts = ts
 
@@ -152,8 +169,10 @@ def main():
 
     labeled = []
     total = skipped = 0
+    has_well_id = False
     with open(RAW_FILE) as f:
         reader = csv.DictReader(f)
+        has_well_id = WELL_ID_COL in (reader.fieldnames or [])
         for row in reader:
             total += 1
             label = label_for_actc(row.get("ACTC", ""))
@@ -166,6 +185,7 @@ def main():
                 print(f"    Read {total:,} rows...")
 
     labeled.sort(key=lambda r: int(r["DATE_TIME"]))
+    print(f"      well_id column: {'PRESENT (per-well run detection enabled)' if has_well_id else 'MISSING (falling back to delta-based run detection; re-run volve_to_csv.py to get strict per-well splits)'}")
     counts = {c: 0 for c in CLASS_NAMES}
     for r in labeled:
         counts[r["label"]] += 1
@@ -184,9 +204,11 @@ def main():
     print()
 
     # --- Stage 2: find class runs --------------------------------------------
-    print("[2/5] Finding class runs (delta <= 60s, label-contiguous)...")
+    split_criteria = ("delta <= 60s, label-contiguous"
+                      + (", well_id-contiguous" if has_well_id else ""))
+    print(f"[2/5] Finding class runs ({split_criteria})...")
     t0 = time.time()
-    runs = find_class_runs(labeled)
+    runs = find_class_runs(labeled, use_well_id=has_well_id)
     for cls in CLASS_NAMES:
         top = runs[cls][:3]
         print(f"      {cls}: {len(runs[cls]):,} runs, top 3 lengths = "

@@ -36,7 +36,11 @@ CHANNEL_MAP = {
 
 LABEL_CHANNEL = "ACTC"
 REQUIRED_MNEMONICS = set(CHANNEL_MAP.keys())
-OUTPUT_COLUMNS = ["DATE_TIME", "BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB", "ACTC"]
+# well_id is the source well directory name -- lets generate_labels.py split runs
+# strictly per-well (volve_raw.csv is sorted globally by DATE_TIME across 14 wells
+# whose recording periods overlap, so without well_id a "contiguous" run in the
+# global sort can silently interleave rows from two wells recording at the same time).
+OUTPUT_COLUMNS = ["DATE_TIME", "well_id", "BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB", "ACTC"]
 
 
 def parse_witsml_log(xml_path: str) -> list:
@@ -113,7 +117,8 @@ def parse_witsml_log(xml_path: str) -> list:
 
 def row_is_complete(row: dict) -> bool:
     """Check if a row has all 9 sensor values (non-empty)."""
-    for col in OUTPUT_COLUMNS[1:-1]:  # Skip DATE_TIME and ACTC
+    # Skip DATE_TIME (first), well_id (added later), and ACTC (last)
+    for col in ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]:
         if not row.get(col, ""):
             return False
     return True
@@ -163,6 +168,10 @@ def main():
                 deduped.append(row)
 
         complete = [r for r in deduped if row_is_complete(r)]
+        # Stamp each row with the source well directory name so generate_labels.py
+        # can find runs strictly within a single well's recording.
+        for r in complete:
+            r["well_id"] = well_name
         all_rows.extend(complete)
 
         print(f"  {well_name}: {usable_files} files -> {len(complete):,} complete rows")
