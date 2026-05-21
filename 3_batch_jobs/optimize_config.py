@@ -61,7 +61,7 @@ FIXED_PARAMS = {
 DATA_COLUMNS = ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
 TIMESTAMP_COLUMN = "DATE_TIME"
 
-INFERENCE_FILE = "volve_quick_test_200.csv"
+INFERENCE_FILE = "volve_opt_slice.csv"  # 4,000-row class-balanced slice (see 1_prepare_data/generate_labels.py)
 N_SHOT_FILES = [
     {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
     {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}},
