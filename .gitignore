@@ -1,7 +1,7 @@
 .env
 .DS_Store
 myenv/
-data/
+data/*
 *.csv.gz
 *.zip
 __pycache__/
@@ -13,3 +13,6 @@ python-client/
 !data/volve_drilling.csv
 !data/volve_not_drilling.csv
 !data/volve_inference.csv
+!data/volve_quick_test_200.csv
+!data/volve_opt_slice.csv
+!data/volve_activity_200.jsonl

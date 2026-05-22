@@ -20,6 +20,32 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning (TB
 
 **Quick start:** All data files are pre-built in `data/` via Git LFS. Skip to [step 4 (Upload)](#4-upload-files) to get started immediately.
 
+## Recent prep change: contiguous shots
+
+The previous prep used `random.sample(drilling_rows, 2000)` / `random.sample(not_drilling_rows, 2000)` to build shot files — rows scattered across 7.3M rows / 750 days / 14 wells. Preflight FAILed `timestamp_monotonic` on both shot files, and the inference file ended up with thousands of random per-row "holes" (the sliding window silently glues across these). See the [`omega-model-performance`](https://github.com/archetypeai/omega-model-performance) cross-repo writeup for the full pattern across the seven sibling repos.
+
+### What changed
+
+| | Before | After |
+|---|---|---|
+| Shot construction | `random.sample(drilling_rows, 2000)` etc. scattered across 7.3M rows | 2,000 consecutive rows from a single time-AND-label contiguous run |
+| Inference file | Full labeled CSV minus ~4,200 random rows (thousands of micro-holes) | Full labeled CSV minus 2 contiguous shot ranges (4,000 rows / 2 clean holes) |
+| Optimizer eval target | 200-row random `volve_quick_test_200.csv` | New `volve_opt_slice.csv` — 4,000-row class-balanced slice (2,000 drilling + 2,000 not_drilling, both time-contiguous) |
+| Preflight | 10 PASS / 2 WARN / 2 FAIL (`timestamp_monotonic` on both shot files) | **10 PASS / 4 WARN / 0 FAIL** |
+
+### Run detection
+
+`volve_raw.csv` is sorted globally by `DATE_TIME` across 14 wells whose recording periods overlap. The new prep splits class runs on:
+- label change
+- delta > 60s (well-boundary gap; median delta is 5s, p99.9 is 42s)
+- delta < 1s (timestamp collision between wells)
+- **`well_id` change** — `volve_to_csv.py` now stamps each row with its source well directory name, and `generate_labels.py` uses that as an additional split criterion so runs are strictly per-well. If you're running with an older `volve_raw.csv` that pre-dates this change (no `well_id` column), the script falls back to delta-based splitting only and prints a warning; re-run `volve_to_csv.py` to enable strict per-well splits.
+
+The 4 preflight WARNs after this change are:
+- `timestamp` "large gap" on each shot file (median 4-5s, max 32-45s): real data — brief recording pauses for bit changes / operator data entry. Well under the 60s splitting threshold.
+- `constant_columns` on `volve_not_drilling.csv` (`FLWI`, `ROP`, `WOB`): physically correct — when not drilling, flow / penetration / weight-on-bit are zero.
+- `feature_scale` (~3.9-decade gap) on `volve_drilling.csv`: 9 sensors at different physical scales (SPPA in kPa vs ROP in m/hr). The 96-combo optimizer's cosine variants already test this lever.
+
 ## 1. Setup
 
 ```bash
