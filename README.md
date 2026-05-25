@@ -46,6 +46,46 @@ The 4 preflight WARNs after this change are:
 - `constant_columns` on `volve_not_drilling.csv` (`FLWI`, `ROP`, `WOB`): physically correct — when not drilling, flow / penetration / weight-on-bit are zero.
 - `feature_scale` (~3.9-decade gap) on `volve_drilling.csv`: 9 sensors at different physical scales (SPPA in kPa vs ROP in m/hr). The 96-combo optimizer's cosine variants already test this lever.
 
+### Normalization (z-scoring) — two reproducible variants
+
+The contiguous-shot prep is paired with an optional **global per-channel z-scoring** pass. When enabled, **every output CSV is transformed identically** with `(x − mean) / std` per sensor channel, using stats computed over the full 7.3M-row labeled set and persisted to `data/volve_zscore_stats.json` for reproducibility. This applies to n-shots, inference, quick-test, and opt-slice alike — same scaler, same numbers.
+
+| File written by `generate_labels.py` | Z-scored when `--zscore` (default) | Contiguous selection |
+|---|:---:|:---:|
+| `volve_raw_labeled.csv` | ✓ | n/a (full sorted source) |
+| `volve_drilling.csv` (n-shot) | ✓ | ✓ longest contiguous drilling run |
+| `volve_not_drilling.csv` (n-shot) | ✓ | ✓ longest contiguous not_drilling run |
+| `volve_inference.csv` | ✓ | n/a (full labeled minus shots, global DATE_TIME order) |
+| `volve_quick_test_200.csv` | ✓ | ✓ 200 rows from 3rd-longest drilling run |
+| `volve_opt_slice.csv` | ✓ | ✓ 2,000 + 2,000 from 2nd-longest drilling + not_drilling runs |
+
+**To reproduce *with* z-scoring** (default):
+```bash
+python 1_prepare_data/generate_labels.py
+```
+
+**To reproduce *without* z-scoring** (raw sensor values; recommended when running against the fine-tuned `omega_1_3_surface` encoder, whose training distribution matched raw drilling-sensor scales):
+```bash
+python 1_prepare_data/generate_labels.py --no-zscore
+```
+
+The flag is the only difference between the two prep paths. Run-detection logic, contiguity, well_id handling, and shot/inference/opt_slice layout are identical. When `--no-zscore` is passed, the script also removes any stale `volve_zscore_stats.json` so downstream tools don't mis-interpret the data as z-scored.
+
+**Which variant matches the published results?** With `omega_1_3_surface` no longer available on staging/prod, the headline numbers for this repo are now produced by **`omega_1_4_base` + contiguous + z-scored** (the default-flag prep), against the canonical filenames (`volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, etc.). The `--no-zscore` variant is preserved as an alternative for anyone who recovers access to `omega_1_3_surface` later (z-scoring may shift the input distribution away from that encoder's training).
+
+### Full-run results (`omega_1_4_base` + contiguous + z-scored, prod endpoint)
+
+7.3M-row inference, prod endpoint, ~3h 38m per job:
+
+| Config | Accuracy | F1 (drilling) | Precision | Recall |
+|---|---:|---:|---:|---:|
+| **Default** (w=64, k=5, euclidean, uniform) | **0.9061** | **0.7826** | 0.8996 | 0.6924 |
+| **Optimized** (w=16, k=3, euclidean, uniform — 96-combo F1 winner on `volve_opt_slice`) | 0.8833 | 0.7582 | 0.7666 | 0.7499 |
+
+**Notable**: the optimized config *underperforms* the default at full scale, even though `w=16, k=3, euclidean` won the opt_slice grid search at F1 0.9592. Same within-condition-pilot overestimate the [`newton-machine-state-batch`](https://github.com/archetypeai/archetypeai-agent-skills/blob/main/skills/newton-machine-state-batch/SKILL.md#within-condition-pilot-vs-cross-condition-reality) skill flags: `volve_opt_slice` is two specific drilling/not-drilling runs from 2 wells; full inference spans 14 wells over 750 days. **For Volve, prefer the default config.**
+
+For reference, the published `omega_1_3_surface` baseline (random-sample shots, no z-score) was 90.95% / F1 0.820. The new generic-encoder default is within **0.3pp accuracy** of the published fine-tuned baseline — a different precision/recall tradeoff (much higher precision 0.90 vs 0.80, lower recall 0.69 vs 0.84) but essentially the same overall accuracy. With the fine-tuned encoder no longer available, this is the recommended path.
+
 ## 1. Setup
 
 ```bash
@@ -148,10 +188,14 @@ Output: `data/volve_raw.csv` — 7,419,984 rows, 860 MB (9 sensor columns + DATE
 
 ### Step 2: Generate labels and split data
 
-Label rows using ACTC rig mode codes and split into n-shot, inference, and quick test files:
+Label rows using ACTC rig mode codes and split into n-shot, inference, quick-test, and opt-slice files. The prep applies **contiguous selection** to the n-shots / opt-slice / quick-test and **z-scoring** to all outputs (default). See [Normalization — two reproducible variants](#normalization-z-scoring--two-reproducible-variants) above for the `--no-zscore` flag and the rationale for choosing between variants.
 
 ```bash
+# Default: contiguous shots + z-scored outputs
 python 1_prepare_data/generate_labels.py
+
+# Alternative: contiguous shots, raw values (recommended for omega_1_3_surface)
+python 1_prepare_data/generate_labels.py --no-zscore
 ```
 
 ACTC code mapping:
@@ -166,22 +210,26 @@ ACTC code mapping:
 | 9 | Shut In | `not_drilling` |
 | -1, 0, 5, 19, 20, empty | Ambiguous/unknown | skipped |
 
-Output files:
+Output files (sizes shown for both variants):
 
-| File | Rows | Size | Description |
-|------|------|------|-------------|
-| `volve_raw_labeled.csv` | 7,321,497 | 918 MB | All labeled rows (ground truth for evaluation) |
-| `volve_drilling.csv` | 2,000 | 248 KB | N-shot examples — ACTC-labeled drilling |
-| `volve_not_drilling.csv` | 2,000 | 229 KB | N-shot examples — ACTC-labeled not-drilling |
-| `volve_inference.csv` | 7,317,439 | 834 MB | Remaining rows for batch inference (no label) |
-| `volve_quick_test_200.csv` | 200 | 23 KB | Random sample for quick testing (no label) |
+| File | Rows | Size (z-scored) | Size (raw) | Description |
+|------|------|------|------|-------------|
+| `volve_raw_labeled.csv` | 7,321,497 | 775 MB | 918 MB | All labeled rows (ground truth for evaluation) |
+| `volve_drilling.csv` | 2,000 | 188 KB | 264 KB | N-shot — longest contiguous drilling run |
+| `volve_not_drilling.csv` | 2,000 | 200 KB | 264 KB | N-shot — longest contiguous not_drilling run |
+| `volve_inference.csv` | 7,317,497 | 691 MB | 848 MB | Full labeled CSV minus the 2 shot ranges |
+| `volve_quick_test_200.csv` | 200 | 19 KB | 24 KB | Contiguous 200-row block from 3rd-longest drilling run |
+| `volve_opt_slice.csv` | 4,000 | 388 KB | 520 KB | Class-balanced contiguous slice for `optimize_config.py` |
+| `volve_zscore_stats.json` | — | written | _removed_ | Per-channel mean/std (only when `--zscore`) |
+
+The 12–22% size delta between variants is the signature of z-scoring's uniform compact float format (e.g. `-0.123456` vs raw `4712.111` / `10.0200003816`).
 
 Notes:
 - Labels are based on ACTC (rig control system), not sensor heuristics — independent ground truth
 - 98.7% of rows receive a label (1.3% skipped due to ambiguous/unknown ACTC codes)
 - Dataset breakdown: ~1.8M drilling (24%) vs ~5.5M not-drilling (76%)
-- The 4,000 n-shot samples are excluded from inference and quick test files
-- Random seed is fixed (42) for reproducibility
+- N-shot samples are excluded from inference (4,000 rows / 2 clean contiguous holes); same for both variants
+- No randomness in selection — picks are deterministic from the contiguous-run search
 
 ### Step 3: Convert CSV to JSONL (for Activity Detection)
 

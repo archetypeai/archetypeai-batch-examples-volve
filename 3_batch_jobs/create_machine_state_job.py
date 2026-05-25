@@ -30,7 +30,7 @@ with open(ENV_PATH) as f:
         line = line.strip()
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
-            os.environ[k] = v
+            os.environ.setdefault(k, v)
 
 API_KEY = os.environ["ATAI_API_KEY"]
 API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
@@ -64,7 +64,7 @@ JOB_PAYLOAD = {
                     "weights": "uniform",
                 },
                 "flush_every_n_iteration": 1000,
-                "model_type": "omega_1_3_surface",
+                "model_type": "omega_1_4_base",
                 "reader_config": {
                     "data_columns": [
                         "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",

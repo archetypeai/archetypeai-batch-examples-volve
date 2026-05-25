@@ -33,7 +33,7 @@ with open(ENV_PATH) as f:
         line = line.strip()
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
-            os.environ[k] = v
+            os.environ.setdefault(k, v)
 
 API_KEY = os.environ["ATAI_API_KEY"]
 API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
@@ -55,13 +55,13 @@ PARAM_GRID = {
 FIXED_PARAMS = {
     "batch_size": 8,
     "flush_every_n_iteration": 1000,
-    "model_type": "omega_1_3_surface",
+    "model_type": "omega_1_4_base",
 }
 
 DATA_COLUMNS = ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
 TIMESTAMP_COLUMN = "DATE_TIME"
 
-INFERENCE_FILE = "volve_opt_slice.csv"  # 4,000-row class-balanced slice (see 1_prepare_data/generate_labels.py)
+INFERENCE_FILE = "volve_opt_slice.csv"  # 4,000-row class-balanced slice, z-scored (see 1_prepare_data/generate_labels.py)
 N_SHOT_FILES = [
     {"file_id": "volve_drilling.csv", "metadata": {"class": "drilling"}},
     {"file_id": "volve_not_drilling.csv", "metadata": {"class": "not_drilling"}},
