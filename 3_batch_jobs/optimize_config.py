@@ -55,7 +55,7 @@ PARAM_GRID = {
 FIXED_PARAMS = {
     "batch_size": 8,
     "flush_every_n_iteration": 1000,
-    "model_type": "omega_1_3_surface",
+    "model_type": "omega_1_4_base",
 }
 
 DATA_COLUMNS = ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]

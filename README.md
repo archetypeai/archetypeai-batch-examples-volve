@@ -71,7 +71,10 @@ python 1_prepare_data/generate_labels.py --no-zscore
 
 The flag is the only difference between the two prep paths. Run-detection logic, contiguity, well_id handling, and shot/inference/opt_slice layout are identical. When `--no-zscore` is passed, the script also removes any stale `volve_zscore_stats.json` so downstream tools don't mis-interpret the data as z-scored.
 
-**Which variant matches the published results?** `omega_1_3_surface` *is* available on prod (it was just retired on dev/staging when we first checked). The headline numbers for this repo are now produced by **`omega_1_3_surface` + contiguous + raw values** (i.e., `generate_labels.py --no-zscore`), which matches the published 91% baseline. `omega_1_4_base` + contiguous + z-scored is a strong fallback if `omega_1_3_surface` ever becomes unavailable — it lands within 0.5pp accuracy.
+**Which variant matches the published results?** Two paths work, both produce within ~0.5pp of each other and the published 91% baseline:
+
+- **Recommended (canonical, used in other cohort repos):** `omega_1_4_base` + contiguous + z-scored — i.e., `python generate_labels.py` (default flags). Generic encoder, no fine-tune dependency. Lands at **90.61% acc / F1 0.7826** with much higher precision (0.90 vs 0.80 in the baseline) and lower recall (0.69 vs 0.85) than the fine-tuned path.
+- **Higher-accuracy alternative if available:** `omega_1_3_surface` + contiguous + raw values — i.e., `python generate_labels.py --no-zscore`, then submit jobs with `model_type: "omega_1_3_surface"`. Lands at **91.08% acc / F1 0.8227** (matches the published 91% baseline). Best for in-distribution drilling work, but `omega_1_3_surface` is a SLB-fine-tuned variant whose availability is endpoint-specific.
 
 ### Full-run results (prod endpoint, 7.3M rows)
 
@@ -81,10 +84,10 @@ All four variants run end-to-end on the prod endpoint against `volve_inference.c
 |---|---|---|---:|---:|---:|---:|
 | Published baseline (random shots) | omega_1_3_surface | random + raw | 90.95% | 0.820 | 0.797 | 0.844 |
 | Published baseline optimized (w=128,k=5) | omega_1_3_surface | random + raw | 91.00% | 0.824 | 0.789 | 0.862 |
-| **NEW default (recommended)** | **omega_1_3_surface** | **contiguous + raw** (`--no-zscore`) | **91.08%** | **0.8227** | 0.798 | 0.849 |
-| NEW optimized (w=16, k=3) | omega_1_3_surface | contiguous + raw | 90.87% | 0.8160 | 0.802 | 0.830 |
-| Fallback default | omega_1_4_base | contiguous + z-scored | 90.61% | 0.7826 | 0.900 | 0.692 |
-| Fallback optimized (w=16, k=3) | omega_1_4_base | contiguous + z-scored | 88.33% | 0.7582 | 0.767 | 0.750 |
+| **NEW default (recommended)** | **omega_1_4_base** | **contiguous + z-scored** | **90.61%** | **0.7826** | **0.900** | 0.692 |
+| NEW optimized (w=16, k=3) | omega_1_4_base | contiguous + z-scored | 88.33% | 0.7582 | 0.767 | 0.750 |
+| Higher-accuracy alternative default | omega_1_3_surface | contiguous + raw (`--no-zscore`) | **91.08%** | **0.8227** | 0.798 | 0.849 |
+| Higher-accuracy alternative optimized (w=16, k=3) | omega_1_3_surface | contiguous + raw | 90.87% | 0.8160 | 0.802 | 0.830 |
 | Earlier staging default (z-scored) | omega_1_3_surface | contiguous + z-scored | 88.00% | 0.7772 | 0.710 | 0.859 |
 | Earlier staging optimized (w=128,k=11) | omega_1_3_surface | contiguous + z-scored | 85.13% | 0.7394 | 0.646 | 0.865 |
 

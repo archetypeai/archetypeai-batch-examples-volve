@@ -64,7 +64,7 @@ JOB_PAYLOAD = {
                     "weights": "uniform",
                 },
                 "flush_every_n_iteration": 1000,
-                "model_type": "omega_1_3_surface",
+                "model_type": "omega_1_4_base",
                 "reader_config": {
                     "data_columns": [
                         "BPOS", "DBTM", "FLWI", "HDTH", "HKLD",
