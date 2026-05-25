@@ -27,7 +27,7 @@ with open(ENV_PATH) as f:
         line = line.strip()
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
-            os.environ[k] = v
+            os.environ.setdefault(k, v)
 
 API_KEY = os.environ["ATAI_API_KEY"]
 API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]

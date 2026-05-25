@@ -27,7 +27,7 @@ with open(ENV_PATH) as f:
         line = line.strip()
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
-            os.environ[k] = v
+            os.environ.setdefault(k, v)
 
 API_KEY = os.environ["ATAI_API_KEY"]
 API_ENDPOINT = os.environ["ATAI_API_ENDPOINT"]
@@ -49,7 +49,7 @@ def fmt_bytes(n: int) -> str:
 def progress_bar(current: int, total: int, width: int = 40) -> str:
     pct = current / total
     filled = int(width * pct)
-    bar = "█" * filled + "░" * (width - filled)
+    bar = "=" * filled + ">" * (1 if filled < width else 0) + " " * max(0, width - filled - 1)
     return f"[{bar}] {pct:6.1%}"
 
 
@@ -91,13 +91,22 @@ def abort_upload(upload_id: str):
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <file_path>")
+    args = sys.argv[1:]
+    rename_to = None
+    if "--as" in args:
+        i = args.index("--as")
+        if i + 1 >= len(args):
+            print("Usage: --as requires a file_id argument")
+            sys.exit(1)
+        rename_to = args[i + 1]
+        args = args[:i] + args[i + 2:]
+    if not args:
+        print(f"Usage: {sys.argv[0]} <file_path> [--as <file_id>]")
         sys.exit(1)
 
-    file_path = sys.argv[1]
+    file_path = args[0]
     file_size = os.path.getsize(file_path)
-    filename = os.path.basename(file_path)
+    filename = rename_to if rename_to else os.path.basename(file_path)
 
     print(f"{'='*60}")
     print(f" Archetype AI Multipart Upload")
@@ -114,10 +123,10 @@ def main():
 
     upload_id = init["upload_id"]
     file_uid = init["file_uid"]
-    strategy = init["strategy"]
     num_parts = init["num_parts"]
-    part_size = init.get("part_size", file_size)
     parts = init["parts"]
+    strategy = "multipart" if num_parts > 1 else "simple"
+    part_size = parts[0]["length"] if parts else file_size
 
     print(f"      upload_id : {upload_id}")
     print(f"      file_uid  : {file_uid}")

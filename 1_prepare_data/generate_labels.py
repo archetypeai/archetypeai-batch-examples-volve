@@ -52,7 +52,10 @@ Run detection:
     same instant). Re-run volve_to_csv.py to enable strict per-well splits.
 """
 
+import argparse
 import csv
+import json
+import math
 import os
 import sys
 import time
@@ -60,11 +63,14 @@ import time
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 RAW_FILE = os.path.join(DATA_DIR, "volve_raw.csv")
 LABELED_FILE = os.path.join(DATA_DIR, "volve_raw_labeled.csv")
+ZSCORE_STATS_FILE = os.path.join(DATA_DIR, "volve_zscore_stats.json")
 
 DRILLING_CODES = {"1", "1.0", "2", "2.0"}
 NOT_DRILLING_CODES = {"3", "3.0", "4", "4.0", "8", "8.0", "9", "9.0"}
 
 SENSOR_COLUMNS = ["DATE_TIME", "BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
+# The 9 physical channels (excludes DATE_TIME). These get z-scored; DATE_TIME stays raw.
+SENSOR_NUMERIC_COLUMNS = ["BPOS", "DBTM", "FLWI", "HDTH", "HKLD", "ROP", "RPM", "SPPA", "WOB"]
 LABELED_COLUMNS = SENSOR_COLUMNS + ["label"]
 WELL_ID_COL = "well_id"  # optional; emitted by the newer volve_to_csv.py
 
@@ -144,15 +150,89 @@ def find_class_runs(rows: list, use_well_id: bool) -> dict:
     return runs
 
 
-def write_csv(path: str, rows: list, fields: list):
+def compute_zscore_stats(rows: list) -> tuple:
+    """Compute global per-channel mean and std across all labeled rows.
+
+    Returns (means, stds) as dicts keyed by column name. Standard deviations
+    < 1e-12 are clamped to 1.0 to avoid division-by-zero on constant columns.
+    """
+    sums = {c: 0.0 for c in SENSOR_NUMERIC_COLUMNS}
+    sumsq = {c: 0.0 for c in SENSOR_NUMERIC_COLUMNS}
+    counts = {c: 0 for c in SENSOR_NUMERIC_COLUMNS}
+    for row in rows:
+        for c in SENSOR_NUMERIC_COLUMNS:
+            v = row.get(c, "")
+            if v == "" or v is None:
+                continue
+            try:
+                x = float(v)
+            except ValueError:
+                continue
+            if math.isnan(x):
+                continue
+            sums[c] += x
+            sumsq[c] += x * x
+            counts[c] += 1
+    means = {}
+    stds = {}
+    for c in SENSOR_NUMERIC_COLUMNS:
+        n = counts[c]
+        if n == 0:
+            means[c] = 0.0
+            stds[c] = 1.0
+            continue
+        m = sums[c] / n
+        var = max(0.0, sumsq[c] / n - m * m)
+        s = math.sqrt(var)
+        means[c] = m
+        stds[c] = s if s >= 1e-12 else 1.0
+    return means, stds
+
+
+def write_csv(path: str, rows: list, fields: list, means: dict = None, stds: dict = None):
+    """Write rows to a CSV. If means/stds are provided, z-score the
+    SENSOR_NUMERIC_COLUMNS in-place per row using `(x - mean) / std`.
+    DATE_TIME, label, and any other non-numeric columns pass through.
+    """
+    zscore = means is not None and stds is not None
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for row in rows:
-            writer.writerow({col: row.get(col, "") for col in fields})
+            out = {}
+            for col in fields:
+                v = row.get(col, "")
+                if zscore and col in SENSOR_NUMERIC_COLUMNS and v != "" and v is not None:
+                    try:
+                        x = float(v)
+                        out[col] = f"{(x - means[col]) / stds[col]:.6f}"
+                        continue
+                    except ValueError:
+                        pass
+                out[col] = v
+            writer.writerow(out)
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate contiguous n-shot, inference, quick-test, and opt-slice "
+            "files for the Volve drilling dataset. Z-scoring is applied by "
+            "default; pass --no-zscore to skip it (recommended when running on "
+            "the fine-tuned omega_1_3_surface encoder, whose training "
+            "distribution matched raw drilling-sensor scales — see README)."
+        )
+    )
+    parser.add_argument(
+        "--no-zscore",
+        dest="zscore",
+        action="store_false",
+        help="Skip global per-channel z-scoring. Output CSVs keep raw sensor "
+             "values; volve_zscore_stats.json is not written.",
+    )
+    parser.set_defaults(zscore=True)
+    args = parser.parse_args()
+
     print("=" * 60)
     print(" Generate Contiguous N-Shot, Inference, Quick Test, and Opt-Slice (Volve)")
     print("=" * 60)
@@ -195,10 +275,38 @@ def main():
     print(f"  ({time.time() - t0:.1f}s)")
     print()
 
+    # --- Stage 1b: (optionally) compute global z-score stats ----------------
+    if args.zscore:
+        print("      Computing per-channel z-score stats over labeled rows...")
+        t0 = time.time()
+        means, stds = compute_zscore_stats(labeled)
+        stats_doc = {
+            "n_rows": len(labeled),
+            "columns": SENSOR_NUMERIC_COLUMNS,
+            "mean": {c: means[c] for c in SENSOR_NUMERIC_COLUMNS},
+            "std": {c: stds[c] for c in SENSOR_NUMERIC_COLUMNS},
+        }
+        with open(ZSCORE_STATS_FILE, "w") as f:
+            json.dump(stats_doc, f, indent=2)
+        print(f"      stats written to {os.path.basename(ZSCORE_STATS_FILE)}  ({time.time() - t0:.1f}s)")
+        for c in SENSOR_NUMERIC_COLUMNS:
+            print(f"        {c:<6} mean={means[c]:>14.3f}  std={stds[c]:>14.3f}")
+        print()
+        label_suffix = " (z-scored)"
+    else:
+        means, stds = None, None
+        print("      --no-zscore: skipping z-score computation; output CSVs will contain raw values")
+        # Remove any stale stats file so consumers don't think the data is z-scored.
+        if os.path.exists(ZSCORE_STATS_FILE):
+            os.remove(ZSCORE_STATS_FILE)
+            print(f"      removed stale {os.path.basename(ZSCORE_STATS_FILE)}")
+        print()
+        label_suffix = " (raw values)"
+
     # Write the labeled CSV (sensor columns + label, sorted by DATE_TIME)
-    print("      Writing volve_raw_labeled.csv...")
+    print(f"      Writing volve_raw_labeled.csv{label_suffix}...")
     t0 = time.time()
-    write_csv(LABELED_FILE, labeled, LABELED_COLUMNS)
+    write_csv(LABELED_FILE, labeled, LABELED_COLUMNS, means=means, stds=stds)
     print(f"      {len(labeled):,} rows  {fmt_size(os.path.getsize(LABELED_FILE))}  "
           f"({time.time() - t0:.1f}s)")
     print()
@@ -246,9 +354,9 @@ def main():
         e = s + N_SHOT_PER_CLASS
         shot_ranges[cls] = (s, e)
         path = os.path.join(DATA_DIR, f"volve_{cls}.csv")
-        write_csv(path, labeled[s:e], SENSOR_COLUMNS)
+        write_csv(path, labeled[s:e], SENSOR_COLUMNS, means=means, stds=stds)
         print(f"  volve_{cls}.csv{' ' * (24 - len(cls))} {N_SHOT_PER_CLASS:>6} rows  "
-              f"src=longest {cls} run (idx [{s},{e}))")
+              f"src=longest {cls} run (idx [{s},{e})){label_suffix}")
     print(f"  ({time.time() - t0:.1f}s)")
     print()
 
@@ -262,10 +370,10 @@ def main():
 
     inference_path = os.path.join(DATA_DIR, "volve_inference.csv")
     inference_rows = [r for i, r in enumerate(labeled) if i not in excluded_idx]
-    write_csv(inference_path, inference_rows, SENSOR_COLUMNS)
+    write_csv(inference_path, inference_rows, SENSOR_COLUMNS, means=means, stds=stds)
     print(f"  volve_inference.csv  {len(inference_rows):,} rows  "
           f"(excluded {len(labeled) - len(inference_rows):,} shot rows)  "
-          f"{fmt_size(os.path.getsize(inference_path))}  ({time.time() - t0:.1f}s)")
+          f"{fmt_size(os.path.getsize(inference_path))}{label_suffix}  ({time.time() - t0:.1f}s)")
     print()
 
     # --- Stage 5: quick test + opt_slice -------------------------------------
@@ -277,7 +385,7 @@ def main():
     qt_s = qt_run[0]
     qt_e = qt_s + QUICK_TEST_SIZE
     qt_path = os.path.join(DATA_DIR, "volve_quick_test_200.csv")
-    write_csv(qt_path, labeled[qt_s:qt_e], SENSOR_COLUMNS)
+    write_csv(qt_path, labeled[qt_s:qt_e], SENSOR_COLUMNS, means=means, stds=stds)
     print(f"  volve_quick_test_200.csv  {QUICK_TEST_SIZE} rows  "
           f"(from 3rd-longest drilling run, idx [{qt_s},{qt_e}))")
 
@@ -287,7 +395,7 @@ def main():
     opt_drill_part = labeled[opt_drill[0]:opt_drill[0] + OPT_SLICE_PER_CLASS]
     opt_nd_part = labeled[opt_nd[0]:opt_nd[0] + OPT_SLICE_PER_CLASS]
     opt_path = os.path.join(DATA_DIR, "volve_opt_slice.csv")
-    write_csv(opt_path, opt_drill_part + opt_nd_part, SENSOR_COLUMNS)
+    write_csv(opt_path, opt_drill_part + opt_nd_part, SENSOR_COLUMNS, means=means, stds=stds)
     print(f"  volve_opt_slice.csv       {2 * OPT_SLICE_PER_CLASS:,} rows  "
           f"({OPT_SLICE_PER_CLASS} drilling from 2nd-longest drilling run, "
           f"{OPT_SLICE_PER_CLASS} not_drilling from 2nd-longest not_drilling run)")
