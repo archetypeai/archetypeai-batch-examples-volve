@@ -71,20 +71,34 @@ python 1_prepare_data/generate_labels.py --no-zscore
 
 The flag is the only difference between the two prep paths. Run-detection logic, contiguity, well_id handling, and shot/inference/opt_slice layout are identical. When `--no-zscore` is passed, the script also removes any stale `volve_zscore_stats.json` so downstream tools don't mis-interpret the data as z-scored.
 
-**Which variant matches the published results?** With `omega_1_3_surface` no longer available on staging/prod, the headline numbers for this repo are now produced by **`omega_1_4_base` + contiguous + z-scored** (the default-flag prep), against the canonical filenames (`volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, etc.). The `--no-zscore` variant is preserved as an alternative for anyone who recovers access to `omega_1_3_surface` later (z-scoring may shift the input distribution away from that encoder's training).
+**Which variant matches the published results?** `omega_1_3_surface` *is* available on prod (it was just retired on dev/staging when we first checked). The headline numbers for this repo are now produced by **`omega_1_3_surface` + contiguous + raw values** (i.e., `generate_labels.py --no-zscore`), which matches the published 91% baseline. `omega_1_4_base` + contiguous + z-scored is a strong fallback if `omega_1_3_surface` ever becomes unavailable — it lands within 0.5pp accuracy.
 
-### Full-run results (`omega_1_4_base` + contiguous + z-scored, prod endpoint)
+### Full-run results (prod endpoint, 7.3M rows)
 
-7.3M-row inference, prod endpoint, ~3h 38m per job:
+All four variants run end-to-end on the prod endpoint against `volve_inference.csv` (drilling vs. not_drilling, ground truth from `volve_raw_labeled.csv`):
 
-| Config | Accuracy | F1 (drilling) | Precision | Recall |
-|---|---:|---:|---:|---:|
-| **Default** (w=64, k=5, euclidean, uniform) | **0.9061** | **0.7826** | 0.8996 | 0.6924 |
-| **Optimized** (w=16, k=3, euclidean, uniform — 96-combo F1 winner on `volve_opt_slice`) | 0.8833 | 0.7582 | 0.7666 | 0.7499 |
+| Variant | Model | Prep | Acc | F1 (drilling) | Precision | Recall |
+|---|---|---|---:|---:|---:|---:|
+| Published baseline (random shots) | omega_1_3_surface | random + raw | 90.95% | 0.820 | 0.797 | 0.844 |
+| Published baseline optimized (w=128,k=5) | omega_1_3_surface | random + raw | 91.00% | 0.824 | 0.789 | 0.862 |
+| **NEW default (recommended)** | **omega_1_3_surface** | **contiguous + raw** (`--no-zscore`) | **91.08%** | **0.8227** | 0.798 | 0.849 |
+| NEW optimized (w=16, k=3) | omega_1_3_surface | contiguous + raw | 90.87% | 0.8160 | 0.802 | 0.830 |
+| Fallback default | omega_1_4_base | contiguous + z-scored | 90.61% | 0.7826 | 0.900 | 0.692 |
+| Fallback optimized (w=16, k=3) | omega_1_4_base | contiguous + z-scored | 88.33% | 0.7582 | 0.767 | 0.750 |
+| Earlier staging default (z-scored) | omega_1_3_surface | contiguous + z-scored | 88.00% | 0.7772 | 0.710 | 0.859 |
+| Earlier staging optimized (w=128,k=11) | omega_1_3_surface | contiguous + z-scored | 85.13% | 0.7394 | 0.646 | 0.865 |
 
-**Notable**: the optimized config *underperforms* the default at full scale, even though `w=16, k=3, euclidean` won the opt_slice grid search at F1 0.9592. Same within-condition-pilot overestimate the [`newton-machine-state-batch`](https://github.com/archetypeai/archetypeai-agent-skills/blob/main/skills/newton-machine-state-batch/SKILL.md#within-condition-pilot-vs-cross-condition-reality) skill flags: `volve_opt_slice` is two specific drilling/not-drilling runs from 2 wells; full inference spans 14 wells over 750 days. **For Volve, prefer the default config.**
+### Three findings, cleanly isolated
 
-For reference, the published `omega_1_3_surface` baseline (random-sample shots, no z-score) was 90.95% / F1 0.820. The new generic-encoder default is within **0.3pp accuracy** of the published fine-tuned baseline — a different precision/recall tradeoff (much higher precision 0.90 vs 0.80, lower recall 0.69 vs 0.84) but essentially the same overall accuracy. With the fine-tuned encoder no longer available, this is the recommended path.
+1. **For `omega_1_3_surface`: z-scoring HURTS** (88.00% z-scored → 91.08% raw, **+3.1pp by *removing* z-scoring**). The fine-tuned encoder was trained on raw drilling scales; z-scoring shifts the input distribution away from training. Use `--no-zscore` when the model is `omega_1_3_surface`.
+
+2. **Contiguous prep alone is essentially neutral for `omega_1_3_surface`** (91.08% contiguous + raw vs 90.95% random + raw — within rounding). Unlike NASA / Pump where contiguous prep lifted accuracy 20+pp, Volve's fine-tuned encoder was already strong at the random-shot baseline because the encoder itself absorbs much of the temporal-structure signal.
+
+3. **`omega_1_4_base` + contiguous + z-scored (90.61%) recovers ~99% of the fine-tuned-model headline.** Generic encoder + standard prep recipe ≈ fine-tuned encoder with raw values, with a different precision/recall tradeoff (much higher precision 0.90 vs 0.80, lower recall 0.69 vs 0.85). Strong fallback path.
+
+### Why the optimizer's pick regresses at full scale
+
+`w=16, k=3, euclidean, uniform` won the opt_slice grid search at F1 0.9592 (acc 0.9606), but underperforms the default at full scale across both model variants. Classic within-condition-pilot overestimate that the [`newton-machine-state-batch`](https://github.com/archetypeai/archetypeai-agent-skills/blob/main/skills/newton-machine-state-batch/SKILL.md#within-condition-pilot-vs-cross-condition-reality) skill warns about: `volve_opt_slice` draws from 2 specific drilling/not_drilling runs; full inference spans **14 wells over 750 days**. **For Volve specifically, prefer the default config (w=64, k=5).**
 
 ## 1. Setup
 
