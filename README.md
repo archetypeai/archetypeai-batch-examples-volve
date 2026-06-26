@@ -15,7 +15,7 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning (TB
 | Fine-tune | `1_prepare_data/convert_to_jsonl.py` | TBD — fine-tuning endpoint not yet available |
 
 **Two pipelines:**
-- **Machine State** — classifies sensor windows as "drilling" vs "not_drilling" using n-shot examples + KNN (67% accuracy on quick test, full run pending)
+- **Machine State** — classifies sensor windows as "drilling" vs "not_drilling" using n-shot examples + KNN (~90–91% accuracy on the full 7.3M-row run)
 - **Activity Detection** — generates natural language descriptions of rig state from sensor readings
 
 **Quick start:** All data files are pre-built in `data/` via Git LFS. Skip to [step 4 (Upload)](#4-upload-files) to get started immediately.
@@ -107,8 +107,8 @@ All four variants run end-to-end on the prod endpoint against `volve_inference.c
 
 ```bash
 # Clone
-git clone https://github.com/archetypeai/archetype-batch-examples.git
-cd archetype-batch-examples
+git clone https://github.com/archetypeai/archetypeai-batch-examples-volve.git
+cd archetypeai-batch-examples-volve
 
 # Configure credentials
 cp .env.example .env
@@ -189,7 +189,7 @@ unzip "path/to/Volve_WITSML Realtime drilling data.zip" -d data/volve/
 
 This creates `data/volve/WITSML Realtime drilling data/` with well folders containing WITSML XML files.
 
-> **Note:** If you'd rather skip the download and conversion steps, all data files are already included in `data/` via Git LFS — see `volve_raw.csv`, `volve_raw_labeled.csv`, `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, `volve_quick_test_200.csv`, and `volve_activity_200.jsonl`.
+> **Note:** If you'd rather skip the download and conversion steps, all data files are already included in `data/` via Git LFS — see `volve_raw.csv`, `volve_raw_labeled.csv`, `volve_drilling.csv`, `volve_not_drilling.csv`, `volve_inference.csv`, `volve_quick_test_200.csv`, `volve_opt_slice.csv`, and `volve_activity_200.jsonl`.
 
 ## 3. Prepare Data
 
@@ -356,7 +356,8 @@ Classifies time-series sensor data using n-shot examples. Uses the Newton founda
 **Pipeline key:** `machine-state-classification`
 
 **Available model types:**
-- `omega_1_3_surface` — surface sensor monitoring (9 channels)
+- `omega_1_4_base` — generic time-series encoder, no fine-tune dependency (**default**; used by all scripts here)
+- `omega_1_3_surface` — SLB-fine-tuned surface sensor encoder (9 channels); higher accuracy in-distribution but availability is endpoint-specific. See [Normalization](#normalization-z-scoring--two-reproducible-variants) for when to prefer it (with `--no-zscore`)
 - `omega_1_3_power_drive` — downhole power drive monitoring (9 channels)
 
 **Input ports:**
@@ -368,7 +369,7 @@ Classifies time-series sensor data using n-shot examples. Uses the Newton founda
 worker:
   parallelism: 1
   config:
-    model_type: "omega_1_3_surface"
+    model_type: "omega_1_4_base"
     batch_size: 8
     reader_config:
       data_columns:
@@ -424,7 +425,7 @@ curl -s -X POST "$BASE_URL/batch/jobs" \
           "batch_size": 8,
           "classifier_config": {"metric": "euclidean", "n_neighbors": 5, "weights": "uniform"},
           "flush_every_n_iteration": 1000,
-          "model_type": "omega_1_3_surface",
+          "model_type": "omega_1_4_base",
           "reader_config": {
             "data_columns": ["BPOS","DBTM","FLWI","HDTH","HKLD","ROP","RPM","SPPA","WOB"],
             "step_size": 1,
@@ -612,37 +613,7 @@ python 5_evaluate/evaluate_results.py <quick_test_job_id>
 
 #### Config optimization results
 
-We ran a grid search over 96 hyperparameter combinations using the 200-row quick test (see [step 7](#7-config-optimization)). Key findings:
-
-**Top 5 by Accuracy:**
-
-| window | k | metric | weights | Accuracy | F1 |
-|--------|---|--------|---------|----------|-----|
-| 16 | 3 | euclidean | uniform | **69.7%** | 0.300 |
-| 16 | 3 | cosine | uniform | 69.2% | 0.296 |
-| 64 | 3 | euclidean | uniform | 68.6% | 0.295 |
-| 16 | 5 | euclidean | uniform | 67.6% | 0.231 |
-| 64 | 5 | euclidean | uniform | 67.2% | 0.308 |
-
-**Top 5 by F1 Score:**
-
-| window | k | metric | weights | Accuracy | F1 |
-|--------|---|--------|---------|----------|-----|
-| 128 | 5 | euclidean | uniform | 58.9% | **0.400** |
-| 128 | 7 | euclidean | uniform | 58.9% | 0.400 |
-| 128 | 7 | cosine | uniform | 58.9% | 0.400 |
-| 128 | 11 | euclidean | distance | 54.8% | 0.353 |
-| 128 | 5 | manhattan | uniform | 53.4% | 0.346 |
-
-**Recommendation: optimize for F1 (`window_size=128, k=5, euclidean, uniform`)**
-
-For drilling operations, F1 is more meaningful than accuracy because the dataset is 76% not-drilling. A model that always predicts "not_drilling" would achieve 76% accuracy while being useless. The F1-optimized config catches 45% of actual drilling events (vs 27% with the accuracy-optimized config), which is more useful for safety monitoring and efficiency tracking.
-
-**Key observations:**
-- `window_size` is the most impactful parameter — small windows favor accuracy, large windows favor F1
-- `metric` and `weights` have minimal impact — euclidean ≈ cosine, uniform ≈ distance
-- `n_neighbors` has moderate impact — k=3 best for accuracy, k=5-7 best for F1
-- Base model performance (40% F1) confirms that fine-tuning is needed for production use
+The hyperparameter grid search and its results now live in [step 7 (Config Optimization)](#7-config-optimization). The short version: the grid-search winner on the balanced opt-slice (`w=16, k=3`) **overfits the pilot and regresses at full scale** — for Volve, prefer the default config (`w=64, k=5`). Authoritative full-run numbers are in the [full-run results table](#full-run-results-prod-endpoint-73m-rows) up top.
 
 #### Full run evaluation
 
@@ -667,7 +638,7 @@ Each output line contains:
 
 ## 7. Config Optimization
 
-Before fine-tuning, you can improve results by optimizing the Machine State pipeline config. The optimizer script runs a grid search over key hyperparameters using the 200-row quick test dataset:
+Before fine-tuning, you can improve results by optimizing the Machine State pipeline config. The optimizer script runs a grid search over key hyperparameters, evaluating against the 4,000-row class-balanced `volve_opt_slice.csv` (2,000 drilling + 2,000 not_drilling, both time-contiguous):
 
 ```bash
 python 3_batch_jobs/optimize_config.py
@@ -696,38 +667,21 @@ Output:
 - Results saved to `data/optimization_results.json`
 - Supports resume — re-run after interruption and it skips completed combinations
 
-> **Choose F1, not the printed "Best Config".** The script sorts by accuracy, which is misleading on this quick-test dataset (~76% not-drilling, so any model biased toward not-drilling scores high on accuracy but misses most drilling events). On the 200-row test the accuracy winner (w16/k3) scores F1 0.300 while the F1 winner (w128/k5) scores F1 0.400 — and the gap widens at full scale. Sort `data/optimization_results.json` by F1 when picking a config.
+> **The grid-search winner overfits the pilot — don't ship it blindly.** On the balanced opt-slice, `w=16, k=3, euclidean, uniform` tops the grid (F1 0.9592 / acc 0.9606), but it **regresses at full scale** across both encoders (see the [full-run results table](#full-run-results-prod-endpoint-73m-rows) up top). The opt-slice draws from just 2 contiguous runs; full inference spans 14 wells over 750 days. **For Volve, prefer the default config (`w=64, k=5`).** Treat the grid search as a sanity check, not a final selector.
 
-Once you find the best config, use it for the full run on `volve_inference.csv`:
+Once you've picked a config, use it for the full run on `volve_inference.csv`:
 
 ```bash
-# Default config (window=64)
+# Default config (window=64, k=5) — recommended for Volve
 python 3_batch_jobs/create_machine_state_job.py
 
-# Optimized config (window=128, F1-optimized)
+# Grid-search winner (window=16, k=3) — pilot-optimal, regresses at full scale
 python 3_batch_jobs/create_machine_state_job_optimized.py
 ```
 
-### Full Run Results (7.3M rows, prod)
+### Full Run Results
 
-| Metric | Default (window=64, k=5) | Optimized (window=128, k=5) | Δ |
-|--------|--------------------------|----------------------------|---|
-| **Accuracy** | 90.95% | **91.00%** | +0.05pp |
-| **Precision** | **79.71%** | 78.87% | −0.84pp |
-| **Recall** | 84.37% | **86.18%** | +1.81pp |
-| **F1 Score** | 81.97% | **82.36%** | +0.39pp |
-| Drilling predictions | 25.8% | 26.6% | +0.8pp |
-| Runtime (prod) | 101 min | 101 min | — |
-
-**Confusion matrix deltas** (optimized vs default): +31,914 more actual drilling events caught (TP), −31,978 fewer missed (FN), at the cost of +28,470 more false alarms (FP).
-
-**Key findings:**
-- The `omega_1_3_surface` model works very well on real Volve drilling data (91% accuracy on 7.3M rows).
-- The two configs are effectively equivalent in aggregate — the real tradeoff is **precision vs recall**, not "better vs worse":
-  - **Default (w=64)** wins on precision — use when false alarms are costly (alerts, interventions).
-  - **Optimized (w=128)** wins on recall and F1 — use when missed drilling is costly (billing, safety).
-- Quick-test (200-row) accuracy ranking is misleading due to class imbalance — sort `data/optimization_results.json` by F1 when picking a config.
-- Both configs significantly outperform random chance (76% accuracy for always predicting not-drilling)
+Full-run results for every model/prep/config combination (7.3M rows, prod endpoint) are consolidated in the [full-run results table](#full-run-results-prod-endpoint-73m-rows) near the top of this README, along with the three isolated findings and the optimizer-regression analysis.
 
 ## 8. Fine-Tuning
 
