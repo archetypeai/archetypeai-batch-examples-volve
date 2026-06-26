@@ -2,8 +2,13 @@
 """
 Create and monitor a Machine State batch job with optimized config.
 
-Uses the F1-optimized config found by optimize_config.py:
-  window_size=128, n_neighbors=5, metric=euclidean, weights=uniform
+Uses the grid-search-winning config found by optimize_config.py on the
+balanced opt-slice:
+  window_size=16, n_neighbors=3, metric=euclidean, weights=uniform
+
+Note: this config tops the opt-slice grid but regresses at full scale across
+both encoders. For Volve, the default config (window_size=64, n_neighbors=5 in
+create_machine_state_job.py) is recommended. See the README for details.
 
 Usage:
     python create_machine_state_job_optimized.py
@@ -38,7 +43,7 @@ BASE_URL = f"{API_ENDPOINT}/v0.5"
 AUTH = {"Authorization": f"Bearer {API_KEY}"}
 
 # ---------------------------------------------------------------------------
-# Optimized job configuration (F1-optimized via optimize_config.py)
+# Optimized job configuration (grid-search winner via optimize_config.py)
 # ---------------------------------------------------------------------------
 JOB_PAYLOAD = {
     "name": "volve-drilling-optimized",
@@ -119,8 +124,8 @@ def main():
     print(" Archetype AI Batch Job (Optimized Config)")
     print("=" * 60)
     print()
-    print("  Config: window_size=128, n_neighbors=5, euclidean, uniform")
-    print("  Optimized for: F1 Score")
+    print("  Config: window_size=16, n_neighbors=3, euclidean, uniform")
+    print("  Source: opt-slice grid-search winner (regresses at full scale)")
     print()
 
     # --- Step 1: Create job ------------------------------------------------

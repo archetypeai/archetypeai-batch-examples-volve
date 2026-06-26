@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Automatically optimize Machine State pipeline config by running iterations
-with the quick test dataset (volve_quick_test_200.csv).
+Automatically optimize Machine State pipeline config by running a grid search
+against the balanced opt-slice dataset (volve_opt_slice.csv, 4,000 rows).
 
 Usage:
     python 3_batch_jobs/optimize_config.py
@@ -9,8 +9,12 @@ Usage:
 Searches over window_size, n_neighbors, metric, and weights to find the
 config that produces the best accuracy against ACTC ground truth labels.
 
+Note: the opt-slice grid winner overfits the pilot and tends to regress at
+full scale. Treat the result as a sanity check, not a final selector. See the
+README for the full-run comparison.
+
 Prerequisites:
-    - Upload volve_quick_test_200.csv, volve_drilling.csv, volve_not_drilling.csv
+    - Upload volve_opt_slice.csv, volve_drilling.csv, volve_not_drilling.csv
     - Generate labels: python 1_prepare_data/generate_labels.py
 """
 
