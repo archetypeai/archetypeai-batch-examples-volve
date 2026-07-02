@@ -22,7 +22,7 @@ End-to-end examples for batch upload, batch inference, and batch fine-tuning (TB
 
 ## Recent prep change: contiguous shots
 
-The previous prep used `random.sample(drilling_rows, 2000)` / `random.sample(not_drilling_rows, 2000)` to build shot files — rows scattered across 7.3M rows / 750 days / 14 wells. Preflight FAILed `timestamp_monotonic` on both shot files, and the inference file ended up with thousands of random per-row "holes" (the sliding window silently glues across these). See the [`omega-model-performance`](https://github.com/archetypeai/omega-model-performance) cross-repo writeup for the full pattern across the seven sibling repos.
+The previous prep used `random.sample(drilling_rows, 2000)` / `random.sample(not_drilling_rows, 2000)` to build shot files — rows scattered across 7.3M rows / 750 days / 14 wells. Preflight FAILed `timestamp_monotonic` on both shot files, and the inference file ended up with thousands of random per-row "holes" (the sliding window silently glues across these).
 
 ### What changed
 
